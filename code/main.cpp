@@ -1,25 +1,23 @@
 #include "window.h"
 #include "terrainwidget.h"
 #include "scalarfield2.h"
-#include "spe_shader.h"
+#include "gpu_shader.h"
 #include "texture.h"
 #include <imgui.h>
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
 static ScalarField2 hf;
-static ScalarField2 uplift;
 static ScalarField2 gpu_drainage;
-static GPU_SPE gpu_spe;
+static GPU_Erosion gpu_e;
+//static GPU_Thermal gpu_t;
+//static GPU_Deposition gpu_d;
 static Texture2D albedoTexture;
 static int shadingMode;
-static float brushRadius = 30;
-static bool brushRadius_changed = false;
-static float brushStrength = 10.0;
-static bool brushStrength_changed = false;
-static bool ongoing_gpu_spe = false;
-static float delta_time = 100;
-static bool delta_time_changed = false;
+
+static bool m_run_erosion = false;
+static bool m_run_thermal = false;
+static bool m_run_deposition = false;
 
 /*!
 \brief Compute the intersection between a plane and a ray.
@@ -74,20 +72,20 @@ static void GUI()
 	{
 		// Hardcoded examples
 		{
-			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Premade Uplifts");
-			if (ImGui::Button("Uplift 0")) {
-				uplift = ScalarField2(Box2(Vector2::Null, 150 * 1000), 256, 256, 0.2);
-				gpu_spe.SetUplift(uplift);
+			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Preset terrain");
+			if (ImGui::Button("Terrain 1")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 3000.0);
+				widget->SetHeightField(&hf);
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Uplift 1")) {
-				uplift = ScalarField2(Box2(Vector2::Null, 150*1000), "../data/uplifts/lambda.png", 0.4, 10.0);
-				gpu_spe.SetUplift(uplift);
+			if (ImGui::Button("Terrain 2")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 4000.0);
+				widget->SetHeightField(&hf);
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Uplift 2")) {
-				uplift = ScalarField2(Box2(Vector2::Null, 150*1000), "../data/uplifts/alpes_noise.png", 0.4, 10.0);
-				gpu_spe.SetUplift(uplift);
+			if (ImGui::Button("Terrain 3")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 2000.0);
+				widget->SetHeightField(&hf);
 			}
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 			ImGui::Separator();
@@ -99,18 +97,13 @@ static void GUI()
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Shading");
 			ImGui::RadioButton("Normal", &shadingMode, 0);
 			ImGui::RadioButton("Shaded", &shadingMode, 1);
-			ImGui::RadioButton("Uplift", &shadingMode, 2);
 			if (shadingMode == 1) {
 				Texture2D texture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
 				texture.Fill(Color8(225, 225, 225, 255));
 				widget->SetAlbedo(texture);
 				widget->SetShadingMode(1);
 			}
-			else if (shadingMode == 2) {
-				Texture2D texture = uplift.CreateImage();
-				widget->SetAlbedo(texture);
-				widget->SetShadingMode(1);
-			} else widget->SetShadingMode(shadingMode);
+			else widget->SetShadingMode(shadingMode);
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -124,23 +117,43 @@ static void GUI()
 
 			// Brushes
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "CTRL + Left Click to draw mountains");
-			brushRadius, brushRadius_changed = ImGui::SliderFloat("radius", &brushRadius, 10, 100);
-			brushStrength, brushStrength_changed = ImGui::SliderFloat("strength", &brushStrength, 1, 30);
+			/*brushRadius, brushRadius_changed = ImGui::SliderFloat("radius", &brushRadius, 10, 100);
+			brushStrength, brushStrength_changed = ImGui::SliderFloat("strength", &brushStrength, 1, 30);*/
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		}
 
 		{
-			ImGui::Checkbox("Ongoing simulation", &ongoing_gpu_spe);
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-			delta_time, delta_time_changed = ImGui::SliderFloat("dt", &delta_time, 1, 100);
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-
+			ImGui::Text("Erosion");
+			if (ImGui::Button("Init E")) {
+				std::cout << "erosion" << std::endl;
+				gpu_e.Init(hf);
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Run E", &m_run_erosion);
+		}
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			ImGui::Text("Thermal");
+			if (ImGui::Button("Init T")) {
+				std::cout << "thermal" << std::endl;
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Run T", &m_run_thermal);
+		}
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			ImGui::Text("Deposition");
+			if (ImGui::Button("Init D")) {
+				std::cout << "deposition" << std::endl;
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Run D", &m_run_deposition);
 		}
 		
 		// Simulation statistics
@@ -181,15 +194,11 @@ int main()
 	window = new Window("Stream Power Erosion", 1920, 1080);
 	widget = new TerrainRaytracingWidget();
 	window->SetWidget(widget);
-	hf = ScalarField2(Box2(Vector2::Null, 150*1000), "../data/heightfields/hfTest2.png", 0.0, 1000.0);
-	uplift = ScalarField2(Box2(Vector2::Null, 150*1000), 256, 256, 1.0);
+	hf = ScalarField2(Box2(Vector2::Null, 15*1000), "../data/heightfields/hfTest2.png", 0.0, 4000.0);
 	widget->SetHeightField(&hf);
 	window->SetUICallback(GUI);
 
 	// gpu_spe init
-	gpu_spe.Init(hf);
-	gpu_spe.SetUplift(uplift);
-	gpu_drainage = hf;
 
 	albedoTexture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
 	albedoTexture.Fill(Color8(225, 225, 225, 255));
@@ -210,19 +219,18 @@ int main()
 			Ray ray = cam.PixelToRay(int(xpos), int(ypos), window->width(), window->height());
 			double t;
 			if (PlaneIntersect(ray, t)) {
-				uplift.Gaussian(ray(t), brushRadius * 1000, brushStrength);
-				gpu_spe.SetUplift(uplift);
 			}
 		}
-		if (ongoing_gpu_spe) {
+		if (m_run_erosion) {
 			// parameters changes
-			if (delta_time_changed) gpu_spe.SetDt(delta_time);
-
+			std::cout << "run erosion" << std::endl;
 			// simulation step
-			gpu_spe.Step(200);
-			gpu_spe.GetData(hf);
+			gpu_e.Step(200);
+			gpu_e.GetData(hf);
+
 			widget->UpdateInternal();
 		}
+
 
 		window->Update();
 	}

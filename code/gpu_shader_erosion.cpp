@@ -1,19 +1,19 @@
-#include "spe_shader.h"
+#include "gpu_shader.h"
 
 
-GPU_SPE::~GPU_SPE() {
+GPU_Erosion::~GPU_Erosion() {
 	glDeleteBuffers(1, &bedrockBuffer);
 	glDeleteBuffers(1, &tempBedrockBuffer);
 
 	glDeleteBuffers(1, &streamBuffer);
 	glDeleteBuffers(1, &tempStreamBuffer);
 
-	glDeleteBuffers(1, &upliftBuffer);
+	glDeleteBuffers(1, &hardnessBuffer);
 
 	release_program(simulationShader);
 }
 
-void GPU_SPE::Init(const ScalarField2& hf) {
+void GPU_Erosion::Init(const ScalarField2& hf) {
 	// Prepare data for first step
 	nx = hf.GetSizeX();
 	ny = hf.GetSizeY();
@@ -27,9 +27,7 @@ void GPU_SPE::Init(const ScalarField2& hf) {
 	std::vector<float> tmpZeros(totalBufferSize, 0.);
 
 	// Prepare shader & Init buffer - Just done once
-	std::string fullPath = "./data/shaders/spe_shader.glsl";
-	//std::string fullPath = "D:/temp_files/StreamPowerErosion/data/shaders/spe_shader.glsl";
-
+	std::string fullPath = "./data/shaders/erosion.glsl";
 	simulationShader = read_program(fullPath.c_str());
 
 	if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);
@@ -48,8 +46,8 @@ void GPU_SPE::Init(const ScalarField2& hf) {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempStreamBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
 
-	if (upliftBuffer == 0) glGenBuffers(1, &upliftBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, upliftBuffer);
+	if (hardnessBuffer == 0) glGenBuffers(1, &hardnessBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, hardnessBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
 
 	// Uniforms - just once
@@ -67,16 +65,16 @@ void GPU_SPE::Init(const ScalarField2& hf) {
 	glUseProgram(0);
 }
 
-void GPU_SPE::Step(int n) {
+void GPU_Erosion::Step(int n) {
 
 	for (int i = 0; i < n; i++) {
 
 		glUseProgram(simulationShader);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bedrockBuffer);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, streamBuffer);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, tempBedrockBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, tempBedrockBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, streamBuffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, tempStreamBuffer);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, upliftBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, hardnessBuffer);
 
 		glDispatchCompute(dispatchSize, dispatchSize, 1);
 		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -89,50 +87,25 @@ void GPU_SPE::Step(int n) {
 	glUseProgram(0);
 }
 
-void GPU_SPE::SetDt(float dt) const {
-	glUseProgram(simulationShader);
-	glUniform1f(glGetUniformLocation(simulationShader, "dt"), dt);
-	glUseProgram(0);
-}
 
-void GPU_SPE::SetUplift(const ScalarField2& uplift) const {
+void GPU_Erosion::SetHardness(const ScalarField2& hardness) const {
 	glUseProgram(simulationShader);
 
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, upliftBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * uplift.VertexSize(), &uplift.GetFloatData()[0], GL_STREAM_READ);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, hardnessBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * hardness.VertexSize(), &hardness.GetFloatData()[0], GL_STREAM_READ);
 
 	glUseProgram(0);
 }
 
-GLuint GPU_SPE::GetData() const {
+GLuint GPU_Erosion::GetData() const {
 	return bedrockBuffer;
 }
 
-void GPU_SPE::GetData(ScalarField2& sf) {
+void GPU_Erosion::GetData(ScalarField2& sf) {
 	glGetNamedBufferSubData(bedrockBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
 
 	for (int i = 0; i < totalBufferSize; i++)
 		sf[i] = double(tmpData[i]);
 
-	/*double low, high;
-	sf.GetRange(low, high);
-	std::cout << low << " " << high << std::endl;*/
 }
-
-void GPU_SPE::GetData(ScalarField2& sf, ScalarField2& sa) {
-	glGetNamedBufferSubData(bedrockBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
-
-	for (int i = 0; i < totalBufferSize; i++)
-		sf[i] = double(tmpData[i]);
-
-	glGetNamedBufferSubData(streamBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
-
-	for (int i = 0; i < totalBufferSize; i++)
-		sa[i] = double(tmpData[i]);
-
-	/*double low, high;
-	sa.GetRange(low, high);
-	std::cout << low << " " << high << std::endl;*/
-}
-
 
