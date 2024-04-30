@@ -7,7 +7,7 @@ This is the release code for the paper *Terrain Amplification using Multi-scale 
 
 Clone the repository and its submodules using:
 ```
-git clone --recursive https://github.com/H-Schott/.git
+git clone --recursive https://github.com/H-Schott/MultiScaleErosion.git
 ```
 
 Can be compile on Windows or Linux, using the CMake file.
