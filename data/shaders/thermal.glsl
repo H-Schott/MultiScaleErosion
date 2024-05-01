@@ -4,8 +4,6 @@
 
 layout(binding = 0, std430) readonly  buffer InTerrain      { float in_terrain[];    };
 layout(binding = 1, std430) writeonly buffer OutTerrain     { float out_terrain[];   };
-layout(binding = 2, std430) readonly  buffer InThreshold    { float in_threshold[];  };
-layout(binding = 3, std430) writeonly buffer OutThreshold   { float out_threshold[]; };
 
 // Heightfield data
 uniform vec2 a;
@@ -15,11 +13,11 @@ uniform int ny;
 uniform vec2 cell_diag;
 
 // Thermal erosion parameters
-uniform float eps = 1.0f;
+uniform float eps = 0.00005f;
 uniform float tanThresholdAngle = 0.57f;
 uniform bool noisifiedAngle = true;
-uniform float noise_min = 0.1f;
-uniform float noise_max = 1.37f;
+uniform float noise_min = 0.9f;
+uniform float noise_max = 1.4f;
 uniform float noiseWavelength = 0.0023f;
 uniform bool use_threshold_map = false;
 
@@ -86,14 +84,11 @@ void main()
 
 	// Threshold angle from noise between noise_min and noise_max
 	float tanAngle = tanThresholdAngle;
-	if (use_threshold_map) {
-		tanAngle = in_threshold[id];
-	} else if (noisifiedAngle) {
+	if (noisifiedAngle) {
 		vec3 p = Point(ivec2(x, y));
 		float t = snoise(p * noiseWavelength) * 0.5f + 0.5f;
 		tanAngle = mix(noise_min, noise_max, t);
 	}
-	out_threshold[id] = tanAngle;
 
 	// Check stability with all neighbours
 	float z = Height(ivec2(x, y));

@@ -10,7 +10,7 @@ static TerrainRaytracingWidget* widget;
 static ScalarField2 hf;
 static ScalarField2 gpu_drainage;
 static GPU_Erosion gpu_e;
-//static GPU_Thermal gpu_t;
+static GPU_Thermal gpu_t;
 //static GPU_Deposition gpu_d;
 static Texture2D albedoTexture;
 static int shadingMode;
@@ -127,7 +127,7 @@ static void GUI()
 		{
 			ImGui::Text("Erosion");
 			if (ImGui::Button("Init E")) {
-				std::cout << "erosion" << std::endl;
+				std::cout << "erosion init" << std::endl;
 				gpu_e.Init(hf);
 			}
 			ImGui::SameLine();
@@ -139,7 +139,8 @@ static void GUI()
 		{
 			ImGui::Text("Thermal");
 			if (ImGui::Button("Init T")) {
-				std::cout << "thermal" << std::endl;
+				std::cout << "thermal init" << std::endl;
+				gpu_t.Init(hf);
 			}
 			ImGui::SameLine();
 			ImGui::Checkbox("Run T", &m_run_thermal);
@@ -222,13 +223,17 @@ int main()
 			}
 		}
 		if (m_run_erosion) {
-			// parameters changes
-			std::cout << "run erosion" << std::endl;
-			// simulation step
 			gpu_e.Step(200);
 			gpu_e.GetData(hf);
-
 			widget->UpdateInternal();
+		} else if (m_run_thermal) {
+			gpu_t.Step(200);
+			gpu_t.GetData(hf);
+			widget->UpdateInternal();
+		} else if (m_run_deposition) {
+			/*gpu_d.Step(200);
+			gpu_d.GetData(hf);
+			widget->UpdateInternal();*/
 		}
 
 

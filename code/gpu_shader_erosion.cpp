@@ -97,15 +97,11 @@ void GPU_Erosion::SetHardness(const ScalarField2& hardness) const {
 	glUseProgram(0);
 }
 
-GLuint GPU_Erosion::GetData() const {
-	return bedrockBuffer;
-}
-
 void GPU_Erosion::GetData(ScalarField2& sf) {
 	glGetNamedBufferSubData(bedrockBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
 
 	for (int i = 0; i < totalBufferSize; i++)
 		sf[i] = double(tmpData[i]);
-
 }
+
 

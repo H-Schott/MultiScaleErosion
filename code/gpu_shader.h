@@ -33,7 +33,32 @@ public:
 	void Step(int n);
 
 	void SetHardness(const ScalarField2& uplift) const;
-	GLuint GetData() const;
+	void GetData(ScalarField2& sf);
+};
+
+
+class GPU_Thermal {
+private:
+	GLuint simulationShader = 0;			//!< Compute shader
+
+	GLuint bedrockBuffer = 0;				//!< Bedrock elevation buffer
+	GLuint tempBedrockBuffer = 0;			//!< Temporary bedrock elevation buffer
+
+	GLuint streamBuffer = 0;				//!< Stream area buffer
+	GLuint tempStreamBuffer = 0;			//!< Temporary stream area buffer
+
+	int nx = 0;
+	int ny = 0;
+	int totalBufferSize = 0;					//!< Total buffer size defined as nx * ny
+	int dispatchSize = 0;						//!< Single dispatch size
+	std::vector<float> tmpData;			        //!< Temporary array for retreiving GPU data
+public:
+	GPU_Thermal() {};
+	~GPU_Thermal();
+
+	void Init(const ScalarField2&);
+	void Step(int n);
+
 	void GetData(ScalarField2& sf);
 };
 
