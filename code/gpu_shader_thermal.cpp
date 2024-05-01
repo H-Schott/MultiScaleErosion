@@ -41,10 +41,9 @@ void GPU_Thermal::Init(const ScalarField2& hf) {
 
 	Box2 box = hf.Array2::GetBox();
 	Vector2 cellDiag = hf.CellDiagonal();
-	std::cout << float(cellDiag[0]) << " " << float(cellDiag[1]) << std::endl;
 	glUniform1i(glGetUniformLocation(simulationShader, "nx"), nx);
 	glUniform1i(glGetUniformLocation(simulationShader, "ny"), ny);
-	glUniform2f(glGetUniformLocation(simulationShader, "cell_diag"), float(cellDiag[0]), float(cellDiag[1]));
+	glUniform2f(glGetUniformLocation(simulationShader, "cellDiag"), float(cellDiag[0]), float(cellDiag[1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "b"), float(box[1][0]), float(box[1][1]));
 

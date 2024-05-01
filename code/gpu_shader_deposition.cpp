@@ -1,3 +1,101 @@
 #include "gpu_shader.h"
 
 
+GPU_Deposition::~GPU_Deposition() {
+	glDeleteBuffers(1, &bedrockBuffer);
+	glDeleteBuffers(1, &tempBedrockBuffer);
+
+	glDeleteBuffers(1, &streamBuffer);
+	glDeleteBuffers(1, &tempStreamBuffer);
+
+	glDeleteBuffers(1, &sedimentBuffer);
+	glDeleteBuffers(1, &tempSedimentBuffer);
+
+	release_program(simulationShader);
+}
+
+void GPU_Deposition::Init(const ScalarField2& hf) {
+	// Prepare data for first step
+	nx = hf.GetSizeX();
+	ny = hf.GetSizeY();
+	totalBufferSize = hf.VertexSize();
+	dispatchSize = (max(nx, ny) / 8) + 1;
+
+	tmpData.resize(totalBufferSize);
+	for (int i = 0; i < totalBufferSize; i++)
+		tmpData[i] = hf.at(i);
+
+	std::vector<float> tmpZeros(totalBufferSize, 0.);
+
+	// Prepare shader & Init buffer - Just done once
+	std::string fullPath = "./data/shaders/deposition.glsl";
+	simulationShader = read_program(fullPath.c_str());
+
+	if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, bedrockBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpData.front(), GL_STREAM_READ);
+
+	if (tempBedrockBuffer == 0) glGenBuffers(1, &tempBedrockBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempBedrockBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+	if (streamBuffer == 0) glGenBuffers(1, &streamBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, streamBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+	if (tempStreamBuffer == 0) glGenBuffers(1, &tempStreamBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempStreamBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+	if (sedimentBuffer == 0) glGenBuffers(1, &sedimentBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sedimentBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+	if (tempSedimentBuffer == 0) glGenBuffers(1, &tempSedimentBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSedimentBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+	// Uniforms - just once
+	glUseProgram(simulationShader);
+
+	Box2 box = hf.Array2::GetBox();
+	Vector2 cellDiag = hf.CellDiagonal();
+	glUniform1i(glGetUniformLocation(simulationShader, "nx"), nx);
+	glUniform1i(glGetUniformLocation(simulationShader, "ny"), ny);
+	glUniform2f(glGetUniformLocation(simulationShader, "cellDiag"), float(cellDiag[0]), float(cellDiag[1]));
+	glUniform2f(glGetUniformLocation(simulationShader, "a"), float(box[0][0]), float(box[0][1]));
+	glUniform2f(glGetUniformLocation(simulationShader, "b"), float(box[1][0]), float(box[1][1]));
+
+	glUseProgram(0);
+}
+
+void GPU_Deposition::Step(int n) {
+
+	for (int i = 0; i < n; i++) {
+
+		glUseProgram(simulationShader);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bedrockBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, tempBedrockBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, streamBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, tempStreamBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, sedimentBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, tempSedimentBuffer);
+
+		glDispatchCompute(dispatchSize, dispatchSize, 1);
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+		// dual buffering
+		std::swap(bedrockBuffer, tempBedrockBuffer);
+		std::swap(streamBuffer, tempStreamBuffer);
+		std::swap(sedimentBuffer, tempSedimentBuffer);
+	}
+
+	glUseProgram(0);
+}
+
+void GPU_Deposition::GetData(ScalarField2& sf) {
+	glGetNamedBufferSubData(bedrockBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
+
+	for (int i = 0; i < totalBufferSize; i++)
+		sf[i] = double(tmpData[i]);
+}

@@ -14,17 +14,11 @@ layout(binding = 3, std430) writeonly buffer OutStream  { float out_stream[]; };
 layout(binding = 4, std430) readonly  buffer InSed      { float in_sed[]; };
 layout(binding = 5, std430) writeonly buffer OutSed     { float out_sed[]; };
 
-// source
-layout(binding = 6, std430) readonly  buffer InSource   { float in_source[]; };
-
-// debug
-layout(binding = 7, std430) writeonly buffer OutDebug   { float out_debug[]; };
-
 
 uniform int nx;
 uniform int ny;
-uniform vec3 a;
-uniform vec3 b;
+uniform vec2 a;
+uniform vec2 b;
 uniform vec2 cellDiag;
 
 uniform float deposition_strength = 1.;
@@ -33,10 +27,8 @@ uniform float flow_p = 1.3f;
 const float cellArea = (b.x - a.x) * (b.y - a.y) / float((nx - 1) * (ny - 1)) * 0.00001;
 const float rain = 2.6;
 
-uniform float k = 0.0005f;
 uniform float p_sa = 0.8f;
 uniform float p_sl = 2.0f;
-uniform float dt = 2.f;
 
 const ivec2 next8[8] = ivec2[8](
     ivec2(0, 1), ivec2(1, 1), ivec2(1, 0), ivec2(1, -1),
@@ -158,8 +150,6 @@ bool CheckPit(ivec2 p) {
 }
 
 
-float source = 1.;
-
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
     int x = int(gl_GlobalInvocationID.x);
@@ -192,7 +182,6 @@ void main() {
 
 	float speed = clamp(pow(steepest_slope, 2.), 0., 1.);
     float streamPower = pow(stream, 0.3) * speed;
-    out_debug[id] = 0.;
 
 	// Deposit
 	if (deposition_strength * sed > streamPower) {

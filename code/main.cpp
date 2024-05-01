@@ -11,9 +11,10 @@ static ScalarField2 hf;
 static ScalarField2 gpu_drainage;
 static GPU_Erosion gpu_e;
 static GPU_Thermal gpu_t;
-//static GPU_Deposition gpu_d;
+static GPU_Deposition gpu_d;
 static Texture2D albedoTexture;
 static int shadingMode;
+
 
 static bool m_run_erosion = false;
 static bool m_run_thermal = false;
@@ -151,12 +152,14 @@ static void GUI()
 		{
 			ImGui::Text("Deposition");
 			if (ImGui::Button("Init D")) {
-				std::cout << "deposition" << std::endl;
+				std::cout << "deposition init" << std::endl;
+				gpu_d.Init(hf);
 			}
 			ImGui::SameLine();
 			ImGui::Checkbox("Run D", &m_run_deposition);
 		}
 		
+
 		// Simulation statistics
 		{
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Statistics");
@@ -207,6 +210,7 @@ int main()
 
 	ResetCamera();
 
+
 	// Main loop
 	while (!window->Exit()) {
 		// Heightfield editing
@@ -231,9 +235,9 @@ int main()
 			gpu_t.GetData(hf);
 			widget->UpdateInternal();
 		} else if (m_run_deposition) {
-			/*gpu_d.Step(200);
+			gpu_d.Step(200);
 			gpu_d.GetData(hf);
-			widget->UpdateInternal();*/
+			widget->UpdateInternal();
 		}
 
 

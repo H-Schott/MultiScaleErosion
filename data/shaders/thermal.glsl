@@ -10,7 +10,7 @@ uniform vec2 a;
 uniform vec2 b;
 uniform int nx;
 uniform int ny;
-uniform vec2 cell_diag;
+uniform vec2 cellDiag;
 
 // Thermal erosion parameters
 uniform float eps = 0.00005f;
@@ -47,7 +47,7 @@ int ToIndex1D(int i, int j) {
 }
 
 vec2 ArrayPoint(ivec2 p) {
-	return a.xy + vec2(p) * cell_diag;
+	return a.xy + vec2(p) * cellDiag;
 }
 
 float Height(ivec2 p) {
@@ -106,7 +106,7 @@ void main()
 	}
 
 	// Add/Remove matter if necessary
-	float matter = eps * cell_diag.x * cell_diag.y;
+	float matter = eps * cellDiag.x * cellDiag.y;
 	out_terrain[id] = in_terrain[id] + matter * (receiveMul - distributeMul);
 }
 
