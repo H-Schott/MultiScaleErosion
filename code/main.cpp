@@ -69,7 +69,7 @@ static void GUI()
 		ImGui::EndMainMenuBar();
 	}
 
-	ImGui::Begin("Menu");
+	ImGui::Begin("Menu", 0, ImGuiWindowFlags_AlwaysAutoResize);
 	{
 		// Hardcoded examples
 		{
@@ -158,6 +158,15 @@ static void GUI()
 			ImGui::SameLine();
 			ImGui::Checkbox("Run D", &m_run_deposition);
 		}
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			if (ImGui::Button("x2 upsampling")) {
+				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+				widget->SetHeightField(&hf);
+			}
+		}
 		
 
 		// Simulation statistics
@@ -227,7 +236,7 @@ int main()
 			}
 		}
 		if (m_run_erosion) {
-			gpu_e.Step(200);
+			gpu_e.Step(50);
 			gpu_e.GetData(hf);
 			widget->UpdateInternal();
 		} else if (m_run_thermal) {
@@ -235,7 +244,7 @@ int main()
 			gpu_t.GetData(hf);
 			widget->UpdateInternal();
 		} else if (m_run_deposition) {
-			gpu_d.Step(200);
+			gpu_d.Step(50);
 			gpu_d.GetData(hf);
 			widget->UpdateInternal();
 		}
