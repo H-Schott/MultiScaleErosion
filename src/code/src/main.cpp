@@ -75,17 +75,17 @@ static void GUI()
 		{
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Preset terrain");
 			if (ImGui::Button("Terrain 1")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 3000.0);
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/hfTest2.png", 0.0, 3000.0);
 				widget->SetHeightField(&hf);
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Terrain 2")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 4000.0);
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/hfTest2.png", 0.0, 4000.0);
 				widget->SetHeightField(&hf);
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Terrain 3")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "../data/heightfields/hfTest2.png", 0.0, 2000.0);
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/hfTest2.png", 0.0, 2000.0);
 				widget->SetHeightField(&hf);
 			}
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -207,7 +207,7 @@ int main()
 	window = new Window("Stream Power Erosion", 1920, 1080);
 	widget = new TerrainRaytracingWidget();
 	window->SetWidget(widget);
-	hf = ScalarField2(Box2(Vector2::Null, 15*1000), "../data/heightfields/hfTest2.png", 0.0, 4000.0);
+	hf = ScalarField2(Box2(Vector2::Null, 15*1000), "heightfields/hfTest2.png", 0.0, 4000.0);
 	widget->SetHeightField(&hf);
 	window->SetUICallback(GUI);
 

@@ -49,3 +49,6 @@ target_link_libraries(main
     imgui
 )
 
+# Set RESOURCE_DIR to point to source tree
+target_compile_definitions(main PUBLIC -DRESOURCE_DIR="${PROJECT_SOURCE_DIR}/data")
+

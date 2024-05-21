@@ -53,10 +53,11 @@ ScalarField2::ScalarField2(const Box2& box, int x, int y, const std::vector<doub
 */
 ScalarField2::ScalarField2(const Box2& box, const char* filename, double minV, double maxV) 
 {
+    std::string fullPath = std::string(RESOURCE_DIR) + "/" + std::string(filename);
     a = box[0];
     b = box[1];
     int n;
-    unsigned char* rawData = stbi_load(filename, &nx, &ny, &n, 1);
+    unsigned char* rawData = stbi_load(fullPath.c_str(), &nx, &ny, &n, 1);
     field.resize(nx * ny);
     for (int i = 0; i < nx * ny; i++)
     {

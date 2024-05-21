@@ -27,7 +27,7 @@ void GPU_Erosion::Init(const ScalarField2& hf) {
 	std::vector<float> tmpZeros(totalBufferSize, 0.);
 
 	// Prepare shader & Init buffer - Just done once
-	std::string fullPath = "./data/shaders/erosion.glsl";
+	std::string fullPath = std::string(RESOURCE_DIR) + "/shaders/erosion.glsl";
 	simulationShader = read_program(fullPath.c_str());
 
 	if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);

@@ -1,4 +1,4 @@
-﻿#version 450 core
+#version 450 core
 
 #ifdef COMPUTE_SHADER
 

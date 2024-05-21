@@ -5,6 +5,7 @@
 #include "window.h"
 #include "texture.h"
 
+#include <string>
 #include <imgui.h>
 
 /*!
@@ -213,7 +214,7 @@ void TerrainRaytracingWidget::SetAlbedo(const Texture2D& tex)
 */
 void TerrainRaytracingWidget::ReloadShaders()
 {
-	shaderProgram = read_program("./data/shaders/heightfield_raytrace_330.glsl");
+	shaderProgram = read_program((std::string(RESOURCE_DIR) + "/shaders/heightfield_raytrace_330.glsl").c_str());
 }
 
 /*!

@@ -18,16 +18,9 @@ target_sources(imgui
     backends/imgui_impl_glfw.cpp
     misc/cpp/imgui_stdlib.cpp
 )
-
 target_include_directories(imgui PUBLIC
-    imgui.h
-    imgui_internal.h
-    backends/imgui_impl_opengl3_loader.h
-    backends/imgui_impl_opengl3.h
-    backends/imgui_impl_glfw.h
-    misc/cpp/imgui_stdlib.h
+	.
 )
-
 target_link_libraries(imgui PUBLIC
     glfw
     libglew_static
