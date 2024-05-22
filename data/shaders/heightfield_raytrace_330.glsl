@@ -34,7 +34,7 @@ uniform sampler2D albedo;
 
 // Raymarching data
 uniform int STEPS = 512;
-uniform float epsilon = 0.1f;
+uniform float epsilon = 0.01f;
 uniform vec3 lightDir = vec3(-1.0f, -1.0f, -1.3f);
 
 out vec4 Fragment;

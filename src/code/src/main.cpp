@@ -80,7 +80,7 @@ static void GUI()
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Terrain 2")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/hfTest2.png", 0.0, 4000.0);
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/hfTest3.png", 0.0, 2500.0);
 				widget->SetHeightField(&hf);
 			}
 			ImGui::SameLine();
