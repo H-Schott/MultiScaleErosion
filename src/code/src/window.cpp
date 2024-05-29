@@ -78,14 +78,9 @@ Window::Window(const char* windowName, int w, int h)
 	// vsync
 	glfwSwapInterval(1);
 
-	// TODO(Axel): log this into the console.
-	//spdlog::info("All systems were correctly initialized");
-	//spdlog::info("OpenGL device information: Vendor: {}", (const char*)glGetString(GL_VENDOR));
-	//spdlog::info("OpenGL device information: Renderer: {}", (const char*)glGetString(GL_RENDERER));
-	//spdlog::info("OpenGL device information: Version: {}", (const char*)glGetString(GL_VERSION));
-	//spdlog::info("OpenGL device information: GLSL: {}", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
-	//spdlog::info("Framebuffer size: {}x{}", width_internal, height_internal);
-	//spdlog::info("Dear ImGui: {}", ImGui::GetVersion());
+	std::cout << "OpenGL device information: Vendor: " << (const char*)glGetString(GL_VENDOR) << std::endl;
+	std::cout << "OpenGL device information: Renderer: " << (const char*)glGetString(GL_RENDERER) << std::endl;
+	std::cout << "Dear ImGui: " << ImGui::GetVersion() << std::endl;
 }
 
 /*!
