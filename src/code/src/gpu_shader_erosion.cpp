@@ -103,4 +103,13 @@ void GPU_Erosion::GetData(ScalarField2& sf) {
 		sf[i] = double(tmpData[i]);
 }
 
+void GPU_Erosion::GetDataStream(ScalarField2& sf) {
+	glGetNamedBufferSubData(streamBuffer, 0, sizeof(float) * totalBufferSize, tmpData.data());
 
+	for (int i = 0; i < totalBufferSize; i++)
+		sf[i] = std::pow(double(tmpData[i]), 0.2);
+
+	double s_min, s_max;
+	sf.GetRange(s_min, s_max);
+	std::cout << "Drainage area values go from " << s_min << " to " << s_max << "." << std::endl;
+}

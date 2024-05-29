@@ -239,7 +239,7 @@ vec4 ShadeTerrain(vec3 p) {
 		vec3 light = -normalize(lightDir);
 		vec3 viewDir = normalize(CamPos - p);
 		vec3 n = Normal(p, (b - a) / texSize);
-		float irradiance = max(dot(light, n), 0.0f) * 1.0f;
+		float irradiance = 0.5 + max(dot(light, n), 0.0f) * 0.5f;
 		return vec4(col.xyz * irradiance, 1.0f);
 	}
 	else

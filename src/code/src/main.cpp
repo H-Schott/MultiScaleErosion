@@ -97,10 +97,13 @@ static void GUI()
 		{
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Shading");
 			ImGui::RadioButton("Normal", &shadingMode, 0);
-			ImGui::RadioButton("Shaded", &shadingMode, 1);
+			ImGui::RadioButton("Drainage", &shadingMode, 1);
 			if (shadingMode == 1) {
-				Texture2D texture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
-				texture.Fill(Color8(225, 225, 225, 255));
+				//Texture2D texture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
+				ScalarField2 stream = hf;
+				gpu_e.GetDataStream(stream);
+				Texture2D texture = stream.CreateImage();
+				//texture.Fill(Color8(225, 225, 225, 255));
 				widget->SetAlbedo(texture);
 				widget->SetShadingMode(1);
 			}

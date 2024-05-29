@@ -70,8 +70,8 @@ vec3 Point3D(ivec2 p) {
 }
 
 float Slope(ivec2 p, ivec2 q) {
-    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.0f;
-    if (q.x < 0 || q.x >= nx || q.y < 0 || q.y >= ny) return 0.0f;
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.;
+    if (q.x < 0 || q.x >= nx || q.y < 0 || q.y >= ny) return 0.;
     if (p == q) return 0.0f;
     int index_p = ToIndex1D(p.x, p.y);
     int index_q = ToIndex1D(q.x, q.y);
@@ -80,14 +80,14 @@ float Slope(ivec2 p, ivec2 q) {
 }
 
 float Stream(ivec2 p) {
-    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.0f;
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.;
     int index_p = ToIndex1D(p.x, p.y);
     return in_stream[index_p];
 }
 
 ivec2 GetFlowSteepest(ivec2 p) {
     ivec2 d = ivec2(0, 0);
-    float maxSlope = 0.0f;
+    float maxSlope = 0.;
     for (int i = 0; i < 8; i++) {
         float ss = Slope(p + next8[i], p);
         if (ss > maxSlope) {
@@ -99,7 +99,7 @@ ivec2 GetFlowSteepest(ivec2 p) {
 }
 
 float ComputeIncomingFlowSteepest(ivec2 p) {
-    float stream = 0.0f;
+    float stream = 0.;
     for (int i = 0; i < 8; i++) {
         ivec2 q = p + next8[i];
         ivec2 fd = GetFlowSteepest(q);
@@ -110,25 +110,28 @@ float ComputeIncomingFlowSteepest(ivec2 p) {
 }
 
 void GetFlowWeighted(ivec2 p, out float sn[8]) {
-    float slopeSum = 0.0f;
+    float slopeSum = 0.;
     for (int i = 0; i < 8; i++) {
-        sn[i] = pow(Slope(p + next8[i], p), flow_p);
-        if (sn[i] > 0.0f)
+        float slope_i = Slope(p + next8[i], p);
+        if (slope_i > 0.) {
+            sn[i] = pow(abs(slope_i), flow_p);
             slopeSum += sn[i];
+        } else
+            sn[i] = -1.;
     }
-    slopeSum = (slopeSum == 0.0f) ? 1.0f : slopeSum;
+    slopeSum = (slopeSum < 0.00001) ? 1.0f : slopeSum;
     for (int i = 0; i < 8; i++)
         sn[i] = sn[i] / slopeSum;
 }
 
 float ComputeIncomingFlowWeighted(ivec2 p) {
-    float stream = 0.0f;
+    float stream = 0.;
     for (int i = 0; i < 8; i++) {
         ivec2 q = p + next8[i];
         float sn[8];
         GetFlowWeighted(q, sn);
         float ss = sn[(i + 4) % 8];
-        if (ss > 0.0f)
+        if (ss > 0.)
             stream += ss * Stream(q);
     }
     return stream;

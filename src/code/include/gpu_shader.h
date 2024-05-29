@@ -32,8 +32,9 @@ public:
 	void Init(const ScalarField2&);
 	void Step(int n);
 
-	void SetHardness(const ScalarField2& uplift) const;
+	void SetHardness(const ScalarField2& hardness) const;
 	void GetData(ScalarField2& sf);
+	void GetDataStream(ScalarField2& sf);
 };
 
 
