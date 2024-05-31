@@ -20,6 +20,7 @@ TerrainRaytracingWidget::TerrainRaytracingWidget()
 {
 	parent = nullptr;
 	hf = nullptr;
+	terrain_buffer = 0;
 	hfTexture = albedoTexture = 0;
 	raytraceVAO = shaderProgram = 0;
 	shadingMode = 0;
@@ -53,6 +54,15 @@ void TerrainRaytracingWidget::initializeGL()
 	glGenVertexArrays(1, &raytraceVAO);
 	glGenTextures(1, &hfTexture);
 	glGenTextures(1, &albedoTexture);
+
+	glUseProgram(shaderProgram);
+	Box2 box = hf->GetBox();
+	glUniform2f(glGetUniformLocation(shaderProgram, "a"), float(box[0][0]), float(box[0][1]));
+	glUniform2f(glGetUniformLocation(shaderProgram, "b"), float(box[1][0]), float(box[1][1]));
+	glUniform2f(glGetUniformLocation(shaderProgram, "zRange"), zMin, zMax);
+	glUniform1f(glGetUniformLocation(shaderProgram, "K"), K);
+	glUniform2i(glGetUniformLocation(shaderProgram, "texSize"), hf->GetSizeX(), hf->GetSizeY());
+	glUseProgram(0);
 }
 
 /*!
@@ -78,14 +88,10 @@ void TerrainRaytracingWidget::paintGL()
 	if (hf)
 	{
 		// Uniforms - Heightfield
-		Box2 box = hf->GetBox();
-		glUniform2f(glGetUniformLocation(shaderProgram, "a"), float(box[0][0]), float(box[0][1]));
-		glUniform2f(glGetUniformLocation(shaderProgram, "b"), float(box[1][0]), float(box[1][1]));
-		glUniform2f(glGetUniformLocation(shaderProgram, "zRange"), zMin, zMax);
-		glUniform1f(glGetUniformLocation(shaderProgram, "K"), K);
-		glUniform2i(glGetUniformLocation(shaderProgram, "texSize"), hf->GetSizeX(), hf->GetSizeY());
 		glUniform1i(glGetUniformLocation(shaderProgram, "shadingMode"), shadingMode);
 	}
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, terrain_buffer);
 
 	// Draw heightfield
 	glBindVertexArray(raytraceVAO);

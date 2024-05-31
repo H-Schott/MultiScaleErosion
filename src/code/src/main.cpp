@@ -20,6 +20,9 @@ static bool m_run_erosion = false;
 static bool m_run_thermal = false;
 static bool m_run_deposition = false;
 
+static GLuint m_terrain_buffer = 0;
+
+
 /*!
 \brief Compute the intersection between a plane and a ray.
 The intersection depth is returned if intersection occurs.
@@ -132,7 +135,7 @@ static void GUI()
 			ImGui::Text("Erosion");
 			if (ImGui::Button("Init E")) {
 				std::cout << "erosion init" << std::endl;
-				gpu_e.Init(hf);
+				gpu_e.Init(hf, m_terrain_buffer);
 			}
 			ImGui::SameLine();
 			ImGui::Checkbox("Run E", &m_run_erosion);
@@ -214,7 +217,10 @@ int main()
 	widget->SetHeightField(&hf);
 	window->SetUICallback(GUI);
 
-	// gpu_spe init
+	// buffer init
+	glGenBuffers(1, &m_terrain_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_terrain_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * (hf.GetSizeX() * hf.GetSizeY()), hf.GetFloatData().data(), GL_STREAM_READ);
 
 	albedoTexture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
 	albedoTexture.Fill(Color8(225, 225, 225, 255));

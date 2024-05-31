@@ -13,7 +13,7 @@ GPU_Erosion::~GPU_Erosion() {
 	release_program(simulationShader);
 }
 
-void GPU_Erosion::Init(const ScalarField2& hf) {
+void GPU_Erosion::Init(const ScalarField2& hf, GLuint t_buffer) {
 	// Prepare data for first step
 	nx = hf.GetSizeX();
 	ny = hf.GetSizeY();
@@ -30,9 +30,10 @@ void GPU_Erosion::Init(const ScalarField2& hf) {
 	std::string fullPath = std::string(RESOURCE_DIR) + "/shaders/erosion.glsl";
 	simulationShader = read_program(fullPath.c_str());
 
-	if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, bedrockBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpData.front(), GL_STREAM_READ);
+	/*if (m_terrain_buffer == 0) glGenBuffers(1, &m_terrain_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_terrain_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpData.front(), GL_STREAM_READ);*/
+	bedrockBuffer = t_buffer;
 
 	if (tempBedrockBuffer == 0) glGenBuffers(1, &tempBedrockBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempBedrockBuffer);

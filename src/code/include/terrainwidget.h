@@ -26,6 +26,7 @@ protected:
 	// GL data
 	GLuint shaderProgram;			//!< GL program for shader.
 	GLuint raytraceVAO;				//!< Raytracer VAO.
+	GLuint terrain_buffer;
 	GLuint hfTexture;				//!< Heightfield elevation texture.
 	GLuint albedoTexture;			//!< Albedo texture for the heightfield.
 	std::vector<float> tmpData;		//!< Temporary float vector.
@@ -49,6 +50,7 @@ public:
 
 	virtual void Update();
 	virtual void SetHeightField(ScalarField2* hfPtr);
+	virtual void SetTerrainBuffer(GLuint buf) { terrain_buffer = buf; };
 	virtual void UpdateInternal();
 	virtual void initializeGL();
 	virtual void paintGL();

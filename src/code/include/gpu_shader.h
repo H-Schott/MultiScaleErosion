@@ -29,12 +29,13 @@ public:
 	GPU_Erosion() {};
 	~GPU_Erosion();
 
-	void Init(const ScalarField2&);
+	void Init(const ScalarField2& hf, GLuint t_buffer);
 	void Step(int n);
 
 	void SetHardness(const ScalarField2& hardness) const;
 	void GetData(ScalarField2& sf);
 	void GetDataStream(ScalarField2& sf);
+	GLuint GetTerrainGLuint() const { return bedrockBuffer; };
 };
 
 
