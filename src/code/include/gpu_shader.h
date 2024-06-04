@@ -58,10 +58,11 @@ public:
 	GPU_Thermal() {};
 	~GPU_Thermal();
 
-	void Init(const ScalarField2&);
+	void Init(const ScalarField2&, GLuint t_buffer);
 	void Step(int n);
 
 	void GetData(ScalarField2& sf);
+	GLuint GetTerrainGLuint() const { return bedrockBuffer; };
 };
 
 
@@ -87,11 +88,11 @@ public:
 	GPU_Deposition() {};
 	~GPU_Deposition();
 
-	void Init(const ScalarField2&);
+	void Init(const ScalarField2&, GLuint t_buffer);
 	void Step(int n);
 
-	void SetHardness(const ScalarField2& uplift) const;
 	void GetData(ScalarField2& sf);
+	GLuint GetTerrainGLuint() const { return bedrockBuffer; };
 };
 
 

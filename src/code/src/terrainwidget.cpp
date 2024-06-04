@@ -60,7 +60,7 @@ void TerrainRaytracingWidget::initializeGL()
 	glUniform2f(glGetUniformLocation(shaderProgram, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(shaderProgram, "b"), float(box[1][0]), float(box[1][1]));
 	glUniform2f(glGetUniformLocation(shaderProgram, "zRange"), zMin, zMax);
-	glUniform1f(glGetUniformLocation(shaderProgram, "K"), K);
+	glUniform1f(glGetUniformLocation(shaderProgram, "K"), 10. * K);
 	glUniform2i(glGetUniformLocation(shaderProgram, "texSize"), hf->GetSizeX(), hf->GetSizeY());
 	glUseProgram(0);
 }
@@ -85,11 +85,7 @@ void TerrainRaytracingWidget::paintGL()
 	glUniform1f(glGetUniformLocation(shaderProgram, "CamAngleOfViewV"), cameraAngleOfViewV);
 	glUniform2f(glGetUniformLocation(shaderProgram, "iResolution"), float(width()), float(height()));
 
-	if (hf)
-	{
-		// Uniforms - Heightfield
-		glUniform1i(glGetUniformLocation(shaderProgram, "shadingMode"), shadingMode);
-	}
+	glUniform1i(glGetUniformLocation(shaderProgram, "shadingMode"), shadingMode);
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, terrain_buffer);
 

@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 #ifdef VERTEX_SHADER
 void main(void)
@@ -13,6 +13,9 @@ void main(void)
 #endif
 
 #ifdef FRAGMENT_SHADER
+
+layout(binding = 0, std430) buffer InTerrain { float heightfield[]; };
+
 // Camera data
 uniform vec3 CamPos;
 uniform vec3 CamLookAt;
@@ -29,29 +32,47 @@ uniform ivec2 texSize;
 uniform int shadingMode;
 
 // Textures: elevation and albedo data
-uniform sampler2D heightfield;
 uniform sampler2D albedo;
 
 // Raymarching data
-uniform int STEPS = 512;
+uniform int STEPS = 4096;
 uniform float epsilon = 0.01f;
 uniform vec3 lightDir = vec3(-1.0f, -1.0f, -1.3f);
 
 out vec4 Fragment;
 
-// Utility function
-float Remap(float x, float oldMin, float oldMax, float newMin, float newMax) {
-	return newMin + (newMax - newMin) * ((x - oldMin) / (oldMax - oldMin));
+float Bilinear(float a00, float a10, float a11, float a01, float u, float v) {
+	return (1 - u) * (1 - v) * a00 + (1 - u) * (v)*a01 + (u) * (1 - v) * a10 + (u) * (v)*a11;
 }
 
-// Read height from the heightfield texture given a world point
-// p: world position
-// returns height at point
-float Height(vec2 p) {
+float at(int i, int j) {
+	return heightfield[j * texSize.x + i];
+}
+
+void GetUV(vec2 p, out vec2 uv, out int i, out int j) {
+	p = clamp(p, a, b);
+	
 	vec2 q = p - a;
 	vec2 d = b - a;
-	vec2 uv = q / d;
-	return Remap(texture(heightfield, uv).r, 0.0f, 1.0f, zRange.x, zRange.y);
+
+	uv = q / d;
+	uv = uv * vec2(texSize.x - 1, texSize.y - 1);
+		
+	i = int(uv.x);
+	j = int(uv.y);
+
+	uv = vec2(uv.x - i, uv.y - j);
+}
+
+// Heighfield elevation
+// Bilinear interpolation of elevations
+// p: Point
+float Height(vec2 p) {
+	vec2 uv;
+	int i, j;
+	GetUV(p, uv, i, j);
+
+	return Bilinear(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1), uv.x, uv.y);
 }
 
 // Read color from the albedo texture given a world point

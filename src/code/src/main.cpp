@@ -16,9 +16,13 @@ static Texture2D albedoTexture;
 static int shadingMode;
 
 
-static bool m_run_erosion = false;
-static bool m_run_thermal = false;
-static bool m_run_deposition = false;
+static bool m_run_erosion     = false;
+static bool m_run_thermal     = false;
+static bool m_run_deposition  = false;
+
+static bool m_init_erosion    = false;
+static bool m_init_thermal    = false;
+static bool m_init_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
 
@@ -102,11 +106,9 @@ static void GUI()
 			ImGui::RadioButton("Normal", &shadingMode, 0);
 			ImGui::RadioButton("Drainage", &shadingMode, 1);
 			if (shadingMode == 1) {
-				//Texture2D texture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
 				ScalarField2 stream = hf;
 				gpu_e.GetDataStream(stream);
 				Texture2D texture = stream.CreateImage();
-				//texture.Fill(Color8(225, 225, 225, 255));
 				widget->SetAlbedo(texture);
 				widget->SetShadingMode(1);
 			}
@@ -124,8 +126,6 @@ static void GUI()
 
 			// Brushes
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "CTRL + Left Click to draw mountains");
-			/*brushRadius, brushRadius_changed = ImGui::SliderFloat("radius", &brushRadius, 10, 100);
-			brushStrength, brushStrength_changed = ImGui::SliderFloat("strength", &brushStrength, 1, 30);*/
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -133,11 +133,6 @@ static void GUI()
 
 		{
 			ImGui::Text("Erosion");
-			if (ImGui::Button("Init E")) {
-				std::cout << "erosion init" << std::endl;
-				gpu_e.Init(hf, m_terrain_buffer);
-			}
-			ImGui::SameLine();
 			ImGui::Checkbox("Run E", &m_run_erosion);
 		}
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -145,11 +140,6 @@ static void GUI()
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		{
 			ImGui::Text("Thermal");
-			if (ImGui::Button("Init T")) {
-				std::cout << "thermal init" << std::endl;
-				gpu_t.Init(hf);
-			}
-			ImGui::SameLine();
 			ImGui::Checkbox("Run T", &m_run_thermal);
 		}
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -157,11 +147,6 @@ static void GUI()
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		{
 			ImGui::Text("Deposition");
-			if (ImGui::Button("Init D")) {
-				std::cout << "deposition init" << std::endl;
-				gpu_d.Init(hf);
-			}
-			ImGui::SameLine();
 			ImGui::Checkbox("Run D", &m_run_deposition);
 		}
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -169,8 +154,29 @@ static void GUI()
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		{
 			if (ImGui::Button("x2 upsampling")) {
+				// get data on cpu heightfield
+				std::vector<float> tmpData;
+				tmpData.resize(hf.GetSizeX() * hf.GetSizeY());
+				glGetNamedBufferSubData(m_terrain_buffer, 0, sizeof(float) * (hf.GetSizeX() * hf.GetSizeY()), tmpData.data());
+				for (int i = 0; i < hf.GetSizeX() * hf.GetSizeY(); i++)
+					hf[i] = double(tmpData[i]);
+
+				// x2 rez
 				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+
 				widget->SetHeightField(&hf);
+
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_terrain_buffer);
+				glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * (hf.GetSizeX() * hf.GetSizeY()), hf.GetFloatData().data(), GL_STREAM_READ);
+				widget->SetTerrainBuffer(m_terrain_buffer);
+
+				widget->initializeGL();
+
+				ResetCamera();
+
+				m_init_erosion = false;
+				m_init_thermal = false;
+				m_init_deposition = false;
 			}
 		}
 		
@@ -179,6 +185,8 @@ static void GUI()
 		{
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Statistics");
 			ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / float(ImGui::GetIO().Framerate), float(ImGui::GetIO().Framerate));
+			std::string size_stat = std::string("Current terrain size: ") + std::to_string(hf.GetSizeX()) + " x " + std::to_string(hf.GetSizeY());
+			ImGui::Text(size_stat.c_str());
 		}
 	}
 	ImGui::End();
@@ -212,15 +220,17 @@ int main()
 	// Init
 	window = new Window("Stream Power Erosion", 1920, 1080);
 	widget = new TerrainRaytracingWidget();
-	window->SetWidget(widget);
 	hf = ScalarField2(Box2(Vector2::Null, 15*1000), "heightfields/hfTest2.png", 0.0, 4000.0);
 	widget->SetHeightField(&hf);
+	window->SetWidget(widget);
 	window->SetUICallback(GUI);
 
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_terrain_buffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * (hf.GetSizeX() * hf.GetSizeY()), hf.GetFloatData().data(), GL_STREAM_READ);
+
+	widget->SetTerrainBuffer(m_terrain_buffer);
 
 	albedoTexture = Texture2D(hf.GetSizeX(), hf.GetSizeY());
 	albedoTexture.Fill(Color8(225, 225, 225, 255));
@@ -245,16 +255,36 @@ int main()
 			}
 		}
 		if (m_run_erosion) {
-			gpu_e.Step(50);
-			gpu_e.GetData(hf);
+			if (!m_init_erosion) gpu_e.Init(hf, m_terrain_buffer);
+			m_init_erosion = true;
+			m_init_thermal = false;
+			m_init_deposition = false;
+
+			gpu_e.Step(100);
+
+			widget->SetTerrainBuffer(gpu_e.GetTerrainGLuint());
 			widget->UpdateInternal();
+
 		} else if (m_run_thermal) {
+			if (!m_init_thermal) gpu_t.Init(hf, m_terrain_buffer);
+			m_init_erosion = false;
+			m_init_thermal = true;
+			m_init_deposition = false;
+
 			gpu_t.Step(200);
-			gpu_t.GetData(hf);
+
+			widget->SetTerrainBuffer(gpu_t.GetTerrainGLuint());
 			widget->UpdateInternal();
+
 		} else if (m_run_deposition) {
+			if (!m_init_deposition) gpu_d.Init(hf, m_terrain_buffer);
+			m_init_erosion = false;
+			m_init_thermal = false;
+			m_init_deposition = true;
+
 			gpu_d.Step(50);
-			gpu_d.GetData(hf);
+
+			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
 			widget->UpdateInternal();
 		}
 

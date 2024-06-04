@@ -11,7 +11,7 @@ GPU_Thermal::~GPU_Thermal() {
 	release_program(simulationShader);
 }
 
-void GPU_Thermal::Init(const ScalarField2& hf) {
+void GPU_Thermal::Init(const ScalarField2& hf, GLuint t_buffer) {
 	// Prepare data for first step
 	nx = hf.GetSizeX();
 	ny = hf.GetSizeY();
@@ -28,9 +28,10 @@ void GPU_Thermal::Init(const ScalarField2& hf) {
 	std::string fullPath = std::string(RESOURCE_DIR) + "/shaders/thermal.glsl";
 	simulationShader = read_program(fullPath.c_str());
 
-	if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);
+	/*if (bedrockBuffer == 0) glGenBuffers(1, &bedrockBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, bedrockBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpData.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpData.front(), GL_STREAM_READ);*/
+	bedrockBuffer = t_buffer;
 
 	if (tempBedrockBuffer == 0) glGenBuffers(1, &tempBedrockBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempBedrockBuffer);
