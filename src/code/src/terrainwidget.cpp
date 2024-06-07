@@ -216,7 +216,7 @@ void TerrainRaytracingWidget::SetAlbedo(const Texture2D& tex)
 */
 void TerrainRaytracingWidget::ReloadShaders()
 {
-	shaderProgram = read_program((std::string(RESOURCE_DIR) + "/shaders/heightfield_raytrace_330.glsl").c_str());
+	shaderProgram = read_program((std::string(RESOURCE_DIR) + "/shaders/heightfield_raytrace_430.glsl").c_str());
 }
 
 /*!
