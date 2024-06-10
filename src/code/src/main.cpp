@@ -110,10 +110,10 @@ static void PredefinedErosion() {
 	gpu_e.Step(400);
 
 	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
-	gpu_t.Step(1000);
+	gpu_t.Step(6000);
 
 	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-	gpu_d.Step(500);
+	gpu_d.Step(150);
 }
 
 /*!
