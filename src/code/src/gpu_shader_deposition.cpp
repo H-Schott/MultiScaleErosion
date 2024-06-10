@@ -23,7 +23,7 @@ void GPU_Deposition::Init(const ScalarField2& hf, GLuint t_buffer) {
 
 	tmpData.resize(totalBufferSize);
 	for (int i = 0; i < totalBufferSize; i++)
-		tmpData[i] = hf.at(i);
+		tmpData[i] = float(hf.at(i));
 
 	std::vector<float> tmpZeros(totalBufferSize, 0.);
 
