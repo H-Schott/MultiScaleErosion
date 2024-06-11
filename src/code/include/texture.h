@@ -8,7 +8,7 @@ class Color8
 public:
     unsigned char r, g, b, a;
 
-    explicit inline Color8()
+    inline Color8()
     {
     }
     explicit inline Color8(unsigned char v)
@@ -23,7 +23,7 @@ public:
 };
 
 inline Color8 Color8::Lerp(const double& t, const Color8& a, const Color8& b) {
-    return Color8((1.0 - t) * a.r + t * b.r, (1.0 - t) * a.g + t * b.g, (1.0 - t) * a.b + t * b.b, (1.0 - t) * a.a + t * b.a);
+    return Color8((1.0f - t) * a.r + t * b.r, (1.0f - t) * a.g + t * b.g, (1.0f - t) * a.b + t * b.b, (1.0f - t) * a.a + t * b.a);
 }
 
 // CPU Texture

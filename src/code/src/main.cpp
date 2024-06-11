@@ -60,6 +60,63 @@ static void GetTerrain() {
 }
 
 /*!
+\brief Premade calls to erosion/deposition/stabilization + subdivision calls for presets.
+*/
+static void PredefinedErosion() {
+	// 256
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(3000);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(600);
+
+	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_d.Step(2000);
+
+	// 512
+	GetTerrain();
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(1500);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(1000);
+
+	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_d.Step(700);
+
+	// 1024
+	GetTerrain();
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(700);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(2000);
+
+	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_d.Step(200);
+
+	// 2048
+	GetTerrain();
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(400);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(6000);
+
+	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_d.Step(150);
+}
+
+/*!
 \brief User interface for the application.
 */
 static void GUI()
@@ -83,7 +140,7 @@ static void GUI()
 	{
 		// Hardcoded examples
 		{
-			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Preset terrain");
+			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Base terrains");
 			if (ImGui::Button("Noise")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
 				LoadTerrain();
@@ -104,54 +161,16 @@ static void GUI()
 				widget->initializeGL();
 				ResetCamera();
 			}
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		}
 
 		// Actions
 		{
-			// Reset camera
-			//ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Preset erosions");
-			if (ImGui::Button("Preset erosion")) {
-				// 256
-				gpu_e.Init(hf, m_terrain_buffer);
-				gpu_e.Step(3000);
-
-				gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
-				gpu_t.Step(600);
-
-				gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-				gpu_d.Step(2000);
-
-				// 512
-				GetTerrain();
-				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Results");
+			if (ImGui::Button("Result #1")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
 				LoadTerrain();
 
-				gpu_e.Init(hf, m_terrain_buffer);
-				gpu_e.Step(1500);
-
-				gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
-				gpu_t.Step(1000);
-
-				gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-				gpu_d.Step(700);
-				
-				// 1024
-				GetTerrain();
-				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
-				LoadTerrain();
-
-				gpu_e.Init(hf, m_terrain_buffer);
-				gpu_e.Step(700);
-
-				gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
-				gpu_t.Step(2000);
-
-				gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-				gpu_d.Step(200);
-				
+				PredefinedErosion();
 
 				GetTerrain();
 				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
@@ -159,6 +178,39 @@ static void GUI()
 
 				ResetCamera();
 			}
+			ImGui::SameLine();
+
+			if (ImGui::Button("Result #2")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/mountains.png", 0., 3000.);
+				LoadTerrain();
+
+				PredefinedErosion();
+
+				GetTerrain();
+				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				widget->initializeGL();
+
+				ResetCamera();
+			}
+			ImGui::SameLine();
+
+			if (ImGui::Button("Result #3")) {
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/new_zealand.png", 0., 3200.);
+				LoadTerrain();
+
+				PredefinedErosion();
+
+				GetTerrain();
+				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				widget->initializeGL();
+
+				ResetCamera();
+			}
+			ImGui::Separator();
+			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		}
+
+		{
 			ImGui::Spacing(); ImGui::Spacing();
 			if (ImGui::Button("Reset Camera"))
 				ResetCamera();

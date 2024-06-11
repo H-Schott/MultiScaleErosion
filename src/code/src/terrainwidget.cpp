@@ -60,7 +60,7 @@ void TerrainRaytracingWidget::initializeGL()
 	glUniform2f(glGetUniformLocation(shaderProgram, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(shaderProgram, "b"), float(box[1][0]), float(box[1][1]));
 	glUniform2f(glGetUniformLocation(shaderProgram, "zRange"), zMin, zMax);
-	glUniform1f(glGetUniformLocation(shaderProgram, "K"), 10. * K);
+	glUniform1f(glGetUniformLocation(shaderProgram, "K"), 10.f * K);
 	glUniform2i(glGetUniformLocation(shaderProgram, "texSize"), hf->GetSizeX(), hf->GetSizeY());
 	glUseProgram(0);
 }
