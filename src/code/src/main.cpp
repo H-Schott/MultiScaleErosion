@@ -218,7 +218,7 @@ static void GUI()
 int main()
 {
 	// Init
-	window = new Window("Stream Power Erosion", 1920, 1080);
+	window = new Window("Multi Scale Erosion", 1920, 1080);
 	widget = new TerrainRaytracingWidget();
 	window->SetUICallback(GUI);
 
