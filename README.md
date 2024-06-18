@@ -24,6 +24,7 @@ libxi-dev libxcursor-dev libxinerama-dev libxrandr-dev
 Check the boxes in the UI (only one at a time) to apply the corresponding erosion algorithm.
 Best results are obtained by the following sequence:
 erosion -> thermal -> deposition
+
 Alternating this sequence with the x2 upsampling gives great amplification results.
 
 Presets of sequence of erosion are also available in the app ("Results" buttons)
