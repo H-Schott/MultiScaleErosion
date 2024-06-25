@@ -1,6 +1,7 @@
 # Multi-scale Erosion source code
 
 This is the release code for the paper *Terrain Amplification using Multi-scale Erosion*, to be published in Transactions on Graphics. Please reference this article when using the source code.
+A small mono-scale example is also available on ShaderToy : https://www.shadertoy.com/view/XX2XWD.
 
 ![](teaser.png)
 
