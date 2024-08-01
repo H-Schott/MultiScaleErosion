@@ -2,6 +2,7 @@
 
 This is the release code for the paper *Terrain Amplification using Multi-scale Erosion*, to be published in Transactions on Graphics. Please reference this article when using the source code.
 A small mono-scale example is also available on ShaderToy : https://www.shadertoy.com/view/XX2XWD.
+You'll find more links about the project on this page : https://h-schott.github.io/publications/mserosion/publi_mserosion.html.
 
 ![](teaser.png)
 
