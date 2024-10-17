@@ -7,6 +7,7 @@ target_sources(main
     include/evector.h
     include/gpu_shader.h
     include/ivector.h
+    include/lodepng.h
     include/mathematics.h
     include/noise.h
     include/random.h
@@ -18,6 +19,7 @@ target_sources(main
     include/terrainwidget.h
     include/texture.h
     include/window.h
+    include/write_16_png.h
     PRIVATE
     src/array2.cpp
     src/box2.cpp
@@ -28,6 +30,7 @@ target_sources(main
     src/gpu_shader_erosion.cpp
     src/gpu_shader_thermal.cpp
     src/ivector.cpp
+    src/lodepng.cpp
     src/main.cpp
     src/mathematics.cpp
     src/random.cpp
@@ -37,6 +40,7 @@ target_sources(main
     src/terrainwidget.cpp
     src/texture.cpp
     src/window.cpp
+    src/write_16_png.cpp
 )
 
 target_include_directories(main PRIVATE include)

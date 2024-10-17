@@ -3,6 +3,7 @@
 #include "scalarfield2.h"
 #include "gpu_shader.h"
 #include "texture.h"
+#include "write_16_png.h"
 #include <imgui.h>
 
 static Window* window;
@@ -129,6 +130,7 @@ static void GUI()
 		{
 			if (ImGui::MenuItem("Save heightfield"))
 			{
+				//write_16_png("saved.png");
 				hf.Save("saved.png");
 			}
 			ImGui::EndMenu();
