@@ -6,6 +6,7 @@ target_sources(main
     include/camera.h
     include/evector.h
     include/gpu_shader.h
+    include/ImFileDialog.h
     include/ivector.h
     include/lodepng.h
     include/mathematics.h
@@ -29,6 +30,7 @@ target_sources(main
     src/gpu_shader_deposition.cpp
     src/gpu_shader_erosion.cpp
     src/gpu_shader_thermal.cpp
+    src/ImFileDialog.cpp
     src/ivector.cpp
     src/lodepng.cpp
     src/main.cpp

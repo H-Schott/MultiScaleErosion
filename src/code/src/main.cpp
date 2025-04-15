@@ -4,6 +4,7 @@
 #include "gpu_shader.h"
 #include "texture.h"
 #include "write_16_png.h"
+#include "ImFileDialog.h"
 #include <imgui.h>
 
 static Window* window;
@@ -128,10 +129,12 @@ static void GUI()
 	{
 		if (ImGui::BeginMenu("File"))
 		{
-			if (ImGui::MenuItem("Save heightfield"))
+			if (ImGui::MenuItem("Load DEM")) {
+				ifd::FileDialog::Instance().Open("LoadDEM_Dialog", "Choose a DEM", "Image file (*.png;*.jpg;*.jpeg;){.png,.jpg,.jpeg,.bmp,.tga},.*", false, RESOURCE_DIR);
+			}
+			if (ImGui::MenuItem("Save DEM"))
 			{
-				//write_16_png("saved.png");
-				hf.Save("saved.png");
+				ifd::FileDialog::Instance().Save("SaveDEM_Dialog", "Save current DEM", "", RESOURCE_DIR);
 			}
 			ImGui::EndMenu();
 		}
@@ -267,6 +270,29 @@ static void GUI()
 		}
 	}
 	ImGui::End();
+
+	// File Dialog LOAD
+	if (ifd::FileDialog::Instance().IsDone("LoadDEM_Dialog")) {
+		if (ifd::FileDialog::Instance().HasResult()) {
+			std::string res = ifd::FileDialog::Instance().GetResult().u8string();
+			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 3000., true);
+			LoadTerrain();
+			widget->initializeGL();
+			ResetCamera();
+		}
+		ifd::FileDialog::Instance().Close();
+	}
+
+	// File Dialog SAVE
+	if (ifd::FileDialog::Instance().IsDone("SaveDEM_Dialog")) {
+		if (ifd::FileDialog::Instance().HasResult()) {
+			std::string res = ifd::FileDialog::Instance().GetResult().u8string();
+			GetTerrain();
+			hf.Save((std::string(res) + ".png").c_str());
+		}
+		ifd::FileDialog::Instance().Close();
+	}
+
 }
 
 int main()

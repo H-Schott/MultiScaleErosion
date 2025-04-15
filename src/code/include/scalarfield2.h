@@ -14,6 +14,7 @@ public:
   explicit ScalarField2(const Box2&, int, int, const double& = 0.0);
   explicit ScalarField2(const Box2&, int, int, const std::vector<double>&);
   explicit ScalarField2(const Box2&, const char*, double, double);
+  explicit ScalarField2(const Box2&, const char*, double, double, bool global);
 
   //! Empty
   ~ScalarField2();
