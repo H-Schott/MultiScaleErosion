@@ -95,5 +95,8 @@ public:
 	GLuint GetTerrainGLuint() const { return bedrockBuffer; };
 };
 
+class GPU_SoilDeposition : public GPU_Deposition {
+};
+
 
 #endif

@@ -14,6 +14,7 @@ static ScalarField2 gpu_drainage;
 static GPU_Erosion gpu_e;
 static GPU_Thermal gpu_t;
 static GPU_Deposition gpu_d;
+static GPU_SoilDeposition gpu_ds;
 static Texture2D albedoTexture;
 static int shadingMode;
 
@@ -21,10 +22,12 @@ static int shadingMode;
 static bool m_run_erosion     = false;
 static bool m_run_thermal     = false;
 static bool m_run_deposition  = false;
+static bool m_run_soil_deposition = false;
 
 static bool m_init_erosion    = false;
 static bool m_init_thermal    = false;
 static bool m_init_deposition = false;
+static bool m_init_soil_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
 
@@ -166,6 +169,13 @@ static void GUI()
 				widget->initializeGL();
 				ResetCamera();
 			}
+			ImGui::SameLine();
+			if (ImGui::Button("DEM")) {
+				hf = ScalarField2(Box2(Vector2::Null, 128 * 100), "heightfields/dem_test.png", 0., 1280.);
+				LoadTerrain();
+				widget->initializeGL();
+				ResetCamera();
+			}
 		}
 
 		// Actions
@@ -200,7 +210,7 @@ static void GUI()
 			ImGui::SameLine();
 
 			if (ImGui::Button("Result #3")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/new_zealand.png", 0., 3200.);
+				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/dem_test.png", 0., 3200.);
 				LoadTerrain();
 
 				PredefinedErosion();
@@ -238,6 +248,12 @@ static void GUI()
 		{
 			ImGui::Text("Deposition");
 			ImGui::Checkbox("Run D", &m_run_deposition);
+		}
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			ImGui::Text("Soil Deposition");
+			ImGui::Checkbox("Run SD", &m_run_soil_deposition);
 		}
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		ImGui::Separator();
@@ -318,6 +334,7 @@ int main()
 			if (!m_init_erosion) gpu_e.Init(hf, m_terrain_buffer);
 			m_init_erosion = true;
 			m_init_thermal = false;
+			m_init_soil_deposition = false;
 			m_init_deposition = false;
 
 			gpu_e.Step(100);
@@ -329,6 +346,7 @@ int main()
 			if (!m_init_thermal) gpu_t.Init(hf, m_terrain_buffer);
 			m_init_erosion = false;
 			m_init_thermal = true;
+			m_init_soil_deposition = false;
 			m_init_deposition = false;
 
 			gpu_t.Step(200);
@@ -340,11 +358,23 @@ int main()
 			if (!m_init_deposition) gpu_d.Init(hf, m_terrain_buffer);
 			m_init_erosion = false;
 			m_init_thermal = false;
+			m_init_soil_deposition = false;
 			m_init_deposition = true;
 
 			gpu_d.Step(50);
 
 			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+			widget->UpdateInternal();
+		} else if (m_run_soil_deposition) {
+			if (!m_init_soil_deposition) gpu_ds.Init(hf, m_terrain_buffer);
+			m_init_erosion = false;
+			m_init_thermal = false;
+			m_init_deposition = false;
+			m_init_soil_deposition = true;
+
+			gpu_ds.Step(50);
+
+			widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
 			widget->UpdateInternal();
 		}
 
