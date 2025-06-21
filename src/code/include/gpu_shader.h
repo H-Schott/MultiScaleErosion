@@ -67,7 +67,7 @@ public:
 
 
 class GPU_Deposition {
-private:
+protected:
 	GLuint simulationShader = 0;			//!< Compute shader
 
 	GLuint bedrockBuffer = 0;				//!< Bedrock elevation buffer
@@ -96,6 +96,25 @@ public:
 };
 
 class GPU_SoilDeposition : public GPU_Deposition {
+	GLuint siltBuffer = 0;
+	GLuint tempSiltBuffer = 0;
+	GLuint sandBuffer = 0;
+	GLuint tempSandBuffer = 0;
+	GLuint clayBuffer = 0;
+	GLuint tempClayBuffer = 0;
+	std::vector<float> tmpSilt;
+	std::vector<float> tmpSand;
+	std::vector<float> tmpClay;
+
+public:
+	~GPU_SoilDeposition();
+
+	void Init(const ScalarField2 &hf, const ScalarField2 &siltf, const ScalarField2 &sandf, const ScalarField2 &clayf, GLuint
+	          t_buffer);
+
+	void Step(int n);
+
+	void GetSoilData(ScalarField2 &siltf, ScalarField2 &sandf, ScalarField2 &clayf);
 };
 
 

@@ -14,6 +14,18 @@ layout(binding = 3, std430) writeonly buffer OutStream  { float out_stream[]; };
 layout(binding = 4, std430) readonly  buffer InSed      { float in_sed[]; };
 layout(binding = 5, std430) writeonly buffer OutSed     { float out_sed[]; };
 
+// silt
+layout(binding = 6, std430) readonly  buffer InSilt      { float in_silt[]; };
+layout(binding = 7, std430) writeonly buffer OutSilt     { float out_silt[]; };
+
+// sand
+layout(binding = 8, std430) readonly  buffer InSand      { float in_sand[]; };
+layout(binding = 9, std430) writeonly buffer OutSand     { float out_sand[]; };
+
+// clay
+layout(binding = 10, std430) readonly  buffer InClay      { float in_clay[]; };
+layout(binding = 11, std430) writeonly buffer OutClay     { float out_clay[]; };
+
 
 uniform int nx;
 uniform int ny;
@@ -71,6 +83,12 @@ float Sed(ivec2 p) {
     if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.0f;
     int index_p = ToIndex1D(p.x, p.y);
     return in_sed[index_p];
+}
+
+vec3 SoilTex(ivec2 p) {
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return vec3(0.0f);
+    int index_p = ToIndex1D(p.x, p.y);
+    return vec3(in_silt[index_p], in_sand[index_p], in_clay[index_p]);
 }
 
 ivec2 GetFlowSteepest(ivec2 p) {
@@ -141,6 +159,21 @@ float SedIncomingWeighted(ivec2 p) {
     return sed;
 }
 
+vec3 SoilTexIncomingWeighted(ivec2 p) {
+    vec3 soiltex = vec3(0.0f);
+    for (int i = 0; i < 8; i++) {
+        ivec2 q = p + next8[i];
+        float sn[8];
+        GetFlowWeighted(q, sn);
+        float ss = sn[(i + 4) % 8];
+        if (ss > 0.0f) {
+            soiltex += ss * SoilTex(q);
+            soiltex = normalize(soiltex);
+        }
+    }
+    return soiltex;
+}
+
 bool CheckPit(ivec2 p) {
     for (int i = 0; i < 8; i++) {
         float slope = Slope(p + next8[i], p);
@@ -167,6 +200,9 @@ void main() {
     float stream = in_stream[id];
     float sed = in_sed[id];
 
+    float initial_sed = sed;
+    vec3 soiltex = vec3(in_silt[id], in_sand[id], in_clay[id]);
+
 
     float steepest_slope = SteepestSlope(p);
 
@@ -177,8 +213,11 @@ void main() {
 
 	// Add sediment and water
 	stream = rain * cellArea + StreamIncomingWeighted(p);
-    sed += SedIncomingWeighted(p);
+    float incoming_sed = SedIncomingWeighted(p);
+    sed += incoming_sed;
 
+    soiltex += SoilTexIncomingWeighted(p);
+    soiltex = normalize(soiltex);
 
 	float speed = clamp(pow(steepest_slope, 2.), 0., 1.);
     float streamPower = pow(stream, 0.3) * speed;
@@ -188,6 +227,9 @@ void main() {
 		float deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
         sed = max(0., sed - deposit);
+        soiltex.x = max(0., soiltex.x - deposit);
+        soiltex.y = max(0., soiltex.y - deposit);
+        soiltex.z = max(0., soiltex.z - deposit);
 	}
 
     sed += 0.1 * streamPower;
@@ -196,6 +238,9 @@ void main() {
     out_terrain[id] = height;
     out_stream[id] = stream;
     out_sed[id] = sed;
+    out_silt[id] = soiltex.x;
+    out_sand[id] = soiltex.y;
+    out_clay[id] = soiltex.z;
 }
 
 #endif

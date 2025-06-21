@@ -7,9 +7,17 @@
 #include "ImFileDialog.h"
 #include <imgui.h>
 
+#include "lodepng.h"
+#include "stb_image.h"
+#include "stb_image_write.h"
+
 static Window* window;
 static TerrainRaytracingWidget* widget;
 static ScalarField2 hf;
+static ScalarField2 siltf;
+static ScalarField2 sandf;
+static ScalarField2 clayf;
+static ScalarField2 depthf;
 static ScalarField2 gpu_drainage;
 static GPU_Erosion gpu_e;
 static GPU_Thermal gpu_t;
@@ -274,6 +282,11 @@ static void GUI()
 				m_init_thermal = false;
 				m_init_deposition = false;
 			}
+			if (ImGui::Button("Shader mode")) {
+				shadingMode = (shadingMode + 1) % 3;
+				widget->SetShadingMode(shadingMode);
+			}
+			ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
 		}
 		
 
@@ -311,6 +324,101 @@ static void GUI()
 
 }
 
+void get_soil_texture(bool fetch = false)
+{
+	if (fetch) {
+		gpu_ds.GetSoilData(siltf, sandf, clayf);
+	}
+	auto siltimg = siltf.CreateImage();
+	auto sandimg = sandf.CreateImage();
+	auto clayimg = clayf.CreateImage();
+
+	int nx = siltimg.GetSizeX();
+	int ny = siltimg.GetSizeY();
+	auto colors = std::vector<Color8>(nx*ny);
+
+	for (int i = 0; i < nx*ny; i++) {
+		colors[i] = Color8(siltimg.Data()[i].r, sandimg.Data()[i].g, clayimg.Data()[i].b, 255);
+	}
+	albedoTexture = Texture2D(colors, nx, ny);
+	widget->SetAlbedo(albedoTexture);
+}
+
+void load_soil()
+{
+	int n, nx, ny;
+	std::string fullpath = std::string(RESOURCE_DIR) + "/heightfields/dem_test_sscd.png";
+	unsigned short* raw_data = stbi_load_16(fullpath.c_str(), &nx, &ny, &n, 4);
+
+	if (!raw_data) {
+		std::cout << "Failed to load image: " << fullpath << std::endl;
+		return;
+	}
+
+	std::vector<double> siltfield(nx*ny);
+	std::vector<double> sandfield(nx*ny);
+	std::vector<double> clayfield(nx*ny);
+	std::vector<double> depthfield(nx*ny);
+
+	// for (int row = 0; row < 2; row++) {
+	// 	for (int col = 0; col < 2; col++) {
+	// 		int pixel_index = (row * nx + col) * n;  // Base index for this pixel
+	//
+	// 		std::cout << "Pixel (" << row << "," << col << "): "
+	// 				  << "Silt=" << raw_data[pixel_index + 0] << ", "
+	// 				  << "Sand=" << raw_data[pixel_index + 1] << ", "
+	// 				  << "Clay=" << raw_data[pixel_index + 2] << ", "
+	// 				  << "Depth=" << raw_data[pixel_index + 3] << std::endl;
+	// 	}
+	// }
+	std::cout << "Loaded " << nx << "x" << ny << " image with " << n << " channels" << std::endl;
+	for (int i = 0; i < nx*ny; i++) {
+		// Don't normalize! Pass raw percentage values if that's what the data contains
+		// or normalize to the range that ScalarField2(box, nx, ny, vector) expects
+
+		double silt = double(raw_data[i*n + 0]);
+
+		// PNG stores 0-100 percentages in 16-bit format:
+		siltfield[i] = double(raw_data[i*n + 0]) / 100.0;
+		sandfield[i] = double(raw_data[i*n + 1]) / 100.0;
+		clayfield[i] = double(raw_data[i*n + 2]) / 100.0;
+		depthfield[i] = double(raw_data[i*n + 3]);
+
+	}
+
+	stbi_image_free(raw_data);
+
+	siltf = ScalarField2(hf.GetBox(), nx, ny, siltfield);
+	sandf = ScalarField2(hf.GetBox(), nx, ny, sandfield);
+	clayf = ScalarField2(hf.GetBox(), nx, ny, clayfield);
+	depthf = ScalarField2(hf.GetBox(), nx, ny, depthfield);
+
+	std::cout << "Silt: " << siltf.GetSizeX() << ", " << siltf.GetSizeY() << std::endl;
+
+	auto siltimg = siltf.CreateImage();
+	auto sandimg = sandf.CreateImage();
+	auto clayimg = clayf.CreateImage();
+
+	auto colors = std::vector<Color8>(nx*ny);
+
+	for (int i = 0; i < nx*ny; i++) {
+		colors[i] = Color8(siltimg.Data()[i].r, sandimg.Data()[i].g, clayimg.Data()[i].b, 255);
+	}
+	albedoTexture = Texture2D(colors, nx, ny);
+	std::string outpath = std::string(RESOURCE_DIR) + "/test.png";
+
+	auto outcols = std::vector<unsigned char>(nx*ny*3);
+	for (int i = 0; i < nx*ny; i++) {
+		// outcols[i*3 + 0] = colors[i].r;
+		outcols[i*3 + 0] = colors[i].r;
+		outcols[i*3 + 1] = colors[i].g;
+		outcols[i*3 + 2] = colors[i].b;
+	}
+	stbi_write_png(outpath.c_str(), nx, ny, 3, outcols.data(), 0);
+	shadingMode = 1;
+	widget->SetShadingMode(shadingMode);
+}
+
 int main()
 {
 	// Init
@@ -321,11 +429,20 @@ int main()
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 
-	hf = ScalarField2(Box2(Vector2::Null, 15 * 1000), "heightfields/noise.png", 0.0, 4000.0);
+	hf = ScalarField2(Box2(Vector2::Null, 15 * 1000), "heightfields/dem_test.png", 0.0, 5000.0);
+
 	LoadTerrain();
+	load_soil();
 	window->SetWidget(widget);
 
+
 	ResetCamera();
+
+	get_soil_texture();
+	widget->SetAlbedo(albedoTexture);
+
+	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+	gpu_ds.Step(2);
 
 
 	// Main loop
@@ -366,7 +483,7 @@ int main()
 			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
 			widget->UpdateInternal();
 		} else if (m_run_soil_deposition) {
-			if (!m_init_soil_deposition) gpu_ds.Init(hf, m_terrain_buffer);
+			if (!m_init_soil_deposition) gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 			m_init_erosion = false;
 			m_init_thermal = false;
 			m_init_deposition = false;
@@ -374,6 +491,7 @@ int main()
 
 			gpu_ds.Step(50);
 
+			get_soil_texture(true);
 			widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
 			widget->UpdateInternal();
 		}

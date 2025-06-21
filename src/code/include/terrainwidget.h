@@ -47,6 +47,7 @@ public:
 	void SetCamera(const Camera& cam);
 	void SetShadingMode(int shadingMode);
 	void SetAlbedo(const Texture2D& tex);
+	GLuint GetAlbedoID() const {return albedoTexture;}
 
 	virtual void Update();
 	virtual void SetHeightField(ScalarField2* hfPtr);
