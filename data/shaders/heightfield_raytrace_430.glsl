@@ -240,6 +240,9 @@ vec4 ShadeSkyBlue(in vec3 d) {
 	return vec4(color, 1.0);
 }
 
+const vec4 silt_orange = vec4(1.0, 0.5, 0.0, 1.0);
+const vec4 sand_yellow = vec4(0.0, 1.0, 0.5, 1.0);
+const vec4 clay_red = vec4(1.0, 0.0, 0.5, 1.0);
 // Compute terrain color
 // p: intersection point on terrain
 // returns terrain color.
@@ -256,7 +259,12 @@ vec4 ShadeTerrain(vec3 p) {
 	}
 	else if (shadingMode == 1)
 	{
-		vec4 col = Albedo(p.xy);
+		vec4 tex = Albedo(p.xy);
+		vec4 col = vec4(vec3(0.0), 1.0);
+		col = mix(col, silt_orange, tex.r * 0.5);
+		col = mix(col, sand_yellow, tex.g * 0.5);
+		col = mix(col, clay_red, tex.b * 0.5);
+		col = tex; // comment out for color map
 		vec3 light = -normalize(lightDir);
 		vec3 viewDir = normalize(CamPos - p);
 		vec3 n = Normal(p, (b - a) / texSize);

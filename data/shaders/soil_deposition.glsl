@@ -86,7 +86,7 @@ float Sed(ivec2 p) {
 }
 
 vec3 SoilTex(ivec2 p) {
-    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return vec3(0.0f);
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return vec3(1.0f/3.0f);
     int index_p = ToIndex1D(p.x, p.y);
     return vec3(in_silt[index_p], in_sand[index_p], in_clay[index_p]);
 }
@@ -159,6 +159,48 @@ float SedIncomingWeighted(ivec2 p) {
     return sed;
 }
 
+vec3 AddRatio(vec3 a, vec3 b) {
+    vec3 result = a + b;
+    float sum = result.x + result.y + result.z;
+    if (sum > 0.0f) {
+        result /= sum;
+    } else {
+        result = vec3(1.0f / 3.0f);
+    }
+    return result;
+}
+
+//https://www.ars.usda.gov/ARSUserFiles/60600505/rusle/rusle2_science_doc.pdf pg 133
+float calcSmallAggregate(vec3 soiltex) {
+    float clay = soiltex.b;
+    float small_agg = 0.0f;
+    if (clay < 0.25f) {
+        small_agg = 1.8f * clay;
+    } else if (clay <= 0.5f) {
+        small_agg = 0.45f - 0.6f * (clay - 0.25f);
+    } else {
+        small_agg = 0.6f * clay;
+    }
+    return small_agg;
+}
+
+//https://www.ars.usda.gov/ARSUserFiles/60600505/rusle/rusle2_science_doc.pdf pg 133
+vec3 calcDetachRatio(vec3 soiltex) {
+    float primary_clay = soiltex.b * 0.26;
+    float primary_sand = soiltex.g * pow(max(1.0 - soiltex.b, 0.0), 5);
+    float primary_silt = max(soiltex.r - calcSmallAggregate(soiltex), 0.0f); // should be p_silt - fraction_small_agg
+
+    vec3 detachRatio = vec3(primary_silt, primary_sand, primary_clay);
+    float sum = detachRatio.x + detachRatio.y + detachRatio.z;
+
+    if (sum > 0.0f) {
+        detachRatio /= sum;
+    } else {
+        detachRatio = vec3(1.0f / 3.0f);
+    }
+    return detachRatio;
+}
+
 vec3 SoilTexIncomingWeighted(ivec2 p) {
     vec3 soiltex = vec3(0.0f);
     for (int i = 0; i < 8; i++) {
@@ -167,8 +209,9 @@ vec3 SoilTexIncomingWeighted(ivec2 p) {
         GetFlowWeighted(q, sn);
         float ss = sn[(i + 4) % 8];
         if (ss > 0.0f) {
-            soiltex += ss * SoilTex(q);
-            soiltex = normalize(soiltex);
+            vec3 detach = calcDetachRatio(SoilTex(q));
+            //soiltex = AddRatio(soiltex, ss * SoilTex(q));
+            soiltex = AddRatio(soiltex, ss * detach);
         }
     }
     return soiltex;
@@ -216,8 +259,7 @@ void main() {
     float incoming_sed = SedIncomingWeighted(p);
     sed += incoming_sed;
 
-    soiltex += SoilTexIncomingWeighted(p);
-    soiltex = normalize(soiltex);
+//    soiltex =
 
 	float speed = clamp(pow(steepest_slope, 2.), 0., 1.);
     float streamPower = pow(stream, 0.3) * speed;
@@ -227,11 +269,14 @@ void main() {
 		float deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
         sed = max(0., sed - deposit);
-        soiltex.x = max(0., soiltex.x - deposit);
-        soiltex.y = max(0., soiltex.y - deposit);
-        soiltex.z = max(0., soiltex.z - deposit);
+//        soiltex =
+//        soiltex.x = max(0., soiltex.x - deposit);
+//        soiltex.y = max(0., soiltex.y - deposit);
+//        soiltex.z = max(0., soiltex.z - deposit);
 	}
+    soiltex = AddRatio(soiltex, 0.001 * sed  * SoilTexIncomingWeighted(p));
 
+    // Detach
     sed += 0.1 * streamPower;
 
     // write udpated values

@@ -26,6 +26,8 @@ static GPU_SoilDeposition gpu_ds;
 static Texture2D albedoTexture;
 static int shadingMode;
 
+static GLuint m_satellite_texture = 0;
+static GLuint m_input_soil_texture = 0;
 
 static bool m_run_erosion     = false;
 static bool m_run_thermal     = false;
@@ -39,7 +41,8 @@ static bool m_init_soil_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
 
-
+void get_soil_texture(bool fetch = false);
+void load_soil();
 /*!
 \brief Reset the camera around a given 3D box.
 */
@@ -129,6 +132,75 @@ static void PredefinedErosion() {
 	gpu_d.Step(150);
 }
 
+static void PredefinedSoilErosion() {
+	// 256
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(3000);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(600);
+
+	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Step(20);
+
+	// 512
+	GetTerrain();
+	get_soil_texture(true);
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(1500);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(1000);
+
+	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Step(700);
+
+	// 1024
+	GetTerrain();
+	get_soil_texture(true);
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(700);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(2000);
+
+	// gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Step(200);
+
+	// 2048
+	GetTerrain();
+	get_soil_texture(true);
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);;
+	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	LoadTerrain();
+
+	gpu_e.Init(hf, m_terrain_buffer);
+	gpu_e.Step(400);
+
+	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
+	gpu_t.Step(6000);
+
+	// gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Step(150);
+}
+
+
 /*!
 \brief User interface for the application.
 */
@@ -160,6 +232,7 @@ static void GUI()
 			if (ImGui::Button("Noise")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
 				LoadTerrain();
+				load_soil();
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -167,6 +240,7 @@ static void GUI()
 			if (ImGui::Button("Mountains")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/mountains.png", 0., 3000.);
 				LoadTerrain();
+				load_soil();
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -174,6 +248,7 @@ static void GUI()
 			if (ImGui::Button("New Zealand")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/new_zealand.png", 0., 3200.);
 				LoadTerrain();
+				load_soil();
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -181,9 +256,14 @@ static void GUI()
 			if (ImGui::Button("DEM")) {
 				hf = ScalarField2(Box2(Vector2::Null, 128 * 100), "heightfields/dem_test.png", 0., 1280.);
 				LoadTerrain();
+				load_soil();
 				widget->initializeGL();
 				ResetCamera();
 			}
+		}
+		if (ImGui::Button("Reset"))
+		{
+
 		}
 
 		// Actions
@@ -218,13 +298,14 @@ static void GUI()
 			ImGui::SameLine();
 
 			if (ImGui::Button("Result #3")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/dem_test.png", 0., 3200.);
+				hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0., 3280.0 - 1996.0);
+				load_soil();
 				LoadTerrain();
 
-				PredefinedErosion();
+				PredefinedSoilErosion();
 
 				GetTerrain();
-				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
 				widget->initializeGL();
 
 				ResetCamera();
@@ -271,7 +352,10 @@ static void GUI()
 
 				// x2 upsampling
 				GetTerrain();
-				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);;
+				siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+				sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+				clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
 				LoadTerrain();
 
 				widget->initializeGL();
@@ -281,14 +365,51 @@ static void GUI()
 				m_init_erosion = false;
 				m_init_thermal = false;
 				m_init_deposition = false;
+				m_init_soil_deposition = false;
 			}
 			if (ImGui::Button("Shader mode")) {
 				shadingMode = (shadingMode + 1) % 3;
 				widget->SetShadingMode(shadingMode);
 			}
-			ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
+			if (ImGui::Button("Run 1 step Soil Deposition")) {
+				if (!m_init_soil_deposition) {
+					gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+					m_init_soil_deposition = true;
+					m_init_erosion = false;
+					m_init_thermal = false;
+					m_init_deposition = false;
+				}
+				gpu_ds.Step(1);
+				get_soil_texture(true);
+				widget->SetAlbedo(albedoTexture);
+
+			}
+
 		}
-		
+		if (ImGui::BeginTabBar("ImageTabs"))
+		{
+
+			if (ImGui::BeginTabItem("Input")) {
+				ImGui::Image((ImTextureID) m_input_soil_texture, ImVec2(512, 512));
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Sim result"))
+			{
+				ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Satellite reference"))
+			{
+				ImGui::Image((ImTextureID) m_satellite_texture, ImVec2(512, 512));
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
+		}
+		// ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
+		// ImGui::Image((ImTextureID) m_satellite_texture, ImVec2(512, 512));
 
 		// Simulation statistics
 		{
@@ -324,7 +445,7 @@ static void GUI()
 
 }
 
-void get_soil_texture(bool fetch = false)
+void get_soil_texture(bool fetch)
 {
 	if (fetch) {
 		gpu_ds.GetSoilData(siltf, sandf, clayf);
@@ -389,9 +510,13 @@ void load_soil()
 	stbi_image_free(raw_data);
 
 	siltf = ScalarField2(hf.GetBox(), nx, ny, siltfield);
+	siltf = siltf.SetResolution(hf.GetSizeX(), hf.GetSizeY(), true);
 	sandf = ScalarField2(hf.GetBox(), nx, ny, sandfield);
+	sandf = sandf.SetResolution(hf.GetSizeX(), hf.GetSizeY(), true);
 	clayf = ScalarField2(hf.GetBox(), nx, ny, clayfield);
+	clayf = clayf.SetResolution(hf.GetSizeX(), hf.GetSizeY(), true);
 	depthf = ScalarField2(hf.GetBox(), nx, ny, depthfield);
+	depthf = depthf.SetResolution(hf.GetSizeX(), hf.GetSizeY(), true);
 
 	std::cout << "Silt: " << siltf.GetSizeX() << ", " << siltf.GetSizeY() << std::endl;
 
@@ -419,6 +544,34 @@ void load_soil()
 	widget->SetShadingMode(shadingMode);
 }
 
+void load_sat_png()
+{
+	std::string fullpath = std::string(RESOURCE_DIR) + "/satref.png";
+	int nx, ny, n;
+	unsigned char* raw_data = stbi_load(fullpath.c_str(), &nx, &ny, &n, 0);
+	std::cout << "Loaded satellite texture with channels: " << n << std::endl;
+	if (!raw_data) {
+		std::cout << "Failed to load image: " << fullpath << std::endl;
+		return;
+	}
+
+
+	glGenTextures(1, &m_satellite_texture);
+	glBindTexture(GL_TEXTURE_2D, m_satellite_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	// load 24 bit RGB data:
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, nx, ny, 0, GL_RGB, GL_UNSIGNED_BYTE, raw_data);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	stbi_image_free(raw_data);
+
+	std::cout << "Loaded satellite texture with size: " << nx << "x" << ny << std::endl;
+}
+
 int main()
 {
 	// Init
@@ -426,10 +579,12 @@ int main()
 	widget = new TerrainRaytracingWidget();
 	window->SetUICallback(GUI);
 
+	load_sat_png();
+
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 
-	hf = ScalarField2(Box2(Vector2::Null, 15 * 1000), "heightfields/dem_test.png", 0.0, 5000.0);
+	hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0.0, 3280.0 - 1996.0);
 
 	LoadTerrain();
 	load_soil();
@@ -440,9 +595,17 @@ int main()
 
 	get_soil_texture();
 	widget->SetAlbedo(albedoTexture);
+	glGenTextures(1, &m_input_soil_texture);
+	glBindTexture(GL_TEXTURE_2D, m_input_soil_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, siltf.GetSizeX(), siltf.GetSizeY(), 0, GL_RGBA, GL_UNSIGNED_BYTE, albedoTexture.Data());
+
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
-	gpu_ds.Step(2);
+	// gpu_ds.Step(2);
 
 
 	// Main loop

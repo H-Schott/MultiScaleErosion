@@ -179,7 +179,7 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 
 	if (tempSiltBuffer == 0) glGenBuffers(1, &tempSiltBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSiltBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSilt.front(), GL_STREAM_READ);
 
 	if (sandBuffer == 0) glGenBuffers(1, &sandBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sandBuffer);
@@ -187,7 +187,7 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 
 	if (tempSandBuffer == 0) glGenBuffers(1, &tempSandBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSandBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSand.front(), GL_STREAM_READ);
 
 	if (clayBuffer == 0) glGenBuffers(1, &clayBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, clayBuffer);
@@ -195,7 +195,7 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 
 	if (tempClayBuffer == 0) glGenBuffers(1, &tempClayBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempClayBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpClay.front(), GL_STREAM_READ);
 
 	// Uniforms - just once
 	glUseProgram(simulationShader);
