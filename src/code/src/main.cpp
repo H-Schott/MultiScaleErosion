@@ -141,7 +141,7 @@ static void PredefinedSoilErosion() {
 	gpu_t.Step(600);
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
-	gpu_ds.Step(20);
+	gpu_ds.Step(2000);
 
 	// 512
 	GetTerrain();
@@ -159,7 +159,7 @@ static void PredefinedSoilErosion() {
 	gpu_t.Step(1000);
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
-	gpu_ds.Step(700);
+	gpu_ds.Step(1000);
 
 	// 1024
 	GetTerrain();

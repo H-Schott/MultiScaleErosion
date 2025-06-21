@@ -188,16 +188,25 @@ float calcSmallAggregate(vec3 soiltex) {
 vec3 calcDetachRatio(vec3 soiltex) {
     float primary_clay = soiltex.b * 0.26;
     float primary_sand = soiltex.g * pow(max(1.0 - soiltex.b, 0.0), 5);
-    float primary_silt = max(soiltex.r - calcSmallAggregate(soiltex), 0.0f); // should be p_silt - fraction_small_agg
+    float small_aggregate = calcSmallAggregate(soiltex);
+    float primary_silt = max(soiltex.r - small_aggregate, 0.0f);
 
     vec3 detachRatio = vec3(primary_silt, primary_sand, primary_clay);
     float sum = detachRatio.x + detachRatio.y + detachRatio.z;
+
+    // NB: this is not accurate - s/l aggs have their own detach ratios
+    detachRatio += small_aggregate * soiltex;
+    // large aggregate:
+    detachRatio += soiltex * (1.0f - primary_sand - primary_clay - primary_silt - small_aggregate);
 
     if (sum > 0.0f) {
         detachRatio /= sum;
     } else {
         detachRatio = vec3(1.0f / 3.0f);
     }
+
+
+
     return detachRatio;
 }
 
@@ -269,12 +278,13 @@ void main() {
 		float deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
         sed = max(0., sed - deposit);
+        soiltex = AddRatio(soiltex, 0.1 * deposit * SoilTexIncomingWeighted(p));
 //        soiltex =
 //        soiltex.x = max(0., soiltex.x - deposit);
 //        soiltex.y = max(0., soiltex.y - deposit);
 //        soiltex.z = max(0., soiltex.z - deposit);
 	}
-    soiltex = AddRatio(soiltex, 0.001 * sed  * SoilTexIncomingWeighted(p));
+//    soiltex = AddRatio(soiltex, 0.001 * sed  * SoilTexIncomingWeighted(p));
 
     // Detach
     sed += 0.1 * streamPower;
