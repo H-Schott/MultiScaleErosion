@@ -64,6 +64,90 @@ static void LoadTerrain() {
 	widget->SetTerrainBuffer(m_terrain_buffer);
 }
 
+/**
+ * Classifies soil texture based on sand, silt, and clay percentages
+ * using the USDA soil texture classification system.
+ *
+ * @param sand Percentage of sand (0-100)
+ * @param silt Percentage of silt (0-100)
+ * @param clay Percentage of clay (0-100)
+ * @return String containing the USDA soil texture class
+ */
+// this should really be a lookup table
+static std::string classifySoilTexture(double sand, double silt, double clay) {
+    // Validate input - percentages should sum to approximately 100
+    double total = sand + silt + clay;
+    if (std::abs(total - 100.0) > 2.0) {
+        // return "ERROR: Sand + Silt + Clay must sum to ~100%";
+    	sand = sand/total * 100.0;
+    	silt = silt/total * 100.0;
+    	clay = clay/total * 100.0;
+    	// return std::string("sand, silt, clay percentages adjusted to sum to 100%: ") +
+			  //  "Sand: " + std::to_string(sand) + "%, " +
+			  //  "Silt: " + std::to_string(silt) + "%, " +
+			  //  "Clay: " + std::to_string(clay) + "%";
+		// if (std::abs(sand + silt + clay - 100.0) > 2.0) {
+		// 	return "error: sand + silt + clay must sum to ~100%";
+		// }
+    }
+
+    // Ensure all values are non-negative
+    if (sand < 0 || silt < 0 || clay < 0) {
+        return "ERROR: All percentages must be non-negative";
+    }
+
+    // USDA Soil Texture Classification Logic
+    // Based on the standard USDA soil texture triangle
+
+	// catch weird ones early:
+	if (sand >= 70.0 && clay <= 15.0) {
+		if (sand >= 85.0 && clay <= 5.0) {
+			return "Sand";
+		}
+		return "Loamy Sand";
+	}
+
+    if (clay >= 40.0) {
+	    // SaCl, Cl, SiCL
+    	if (sand >= 45.0) {
+    		return "Sandy Clay";
+    	}
+    	if (silt >= 40.0) {
+			return "Silty Clay";
+		}
+    	return "Clay";
+    } else if (clay >= 27.0) {
+		if (sand >= 45.0) {
+			if (clay <= 35.0) {
+				return "Sandy Clay Loam";
+			}
+			return "Sandy Clay";
+		}
+    	if (sand >= 20.0) {
+    		return "Clay Loam";
+    	}
+    	return "Silty Clay Loam";
+    }
+    else if (clay >= 20.0) {
+	    // SaClLo, Lo, SiLo
+    	if (silt >= 50.0) return "Silty Loam";
+    	if (silt >= 27.0) return "Loam";
+    	return "Sandy Clay Loam";
+	} else if (clay >= 12.0) {
+	    // SaLo, Lo, SiLo
+		if (sand >= 52.0) return "Sandy Loam";
+		if (silt >= 50.0) return "Silty Loam";
+		return "Loam";
+	} else {
+	    // LoSa, SaLo, Lo, SiLo
+		if (sand >= 52.0 && clay <= 8.0) return "Sandy Loam";
+		if (silt >= 80.0) return "Silt";
+		if (silt >= 50.0) return "Silty Loam";
+		return "Loam";
+	}
+	return "?????????????";
+}
+
 /*!
 \brief Get the gpu data on the cpu hf.
 */
@@ -200,6 +284,30 @@ static void PredefinedSoilErosion() {
 	gpu_ds.Step(150);
 }
 
+static void ShowSoilTooltip()
+{
+	ImVec2 startpos = ImGui::GetItemRectMin();
+	ImVec2 size = ImGui::GetItemRectSize();
+	if (ImGui::IsItemHovered() && ImGui::BeginItemTooltip()) {
+		ImVec2 mousepos = ImGui::GetMousePos();
+		ImVec2 coords = ImVec2(mousepos.x - startpos.x, mousepos.y - startpos.y);
+		coords.x = coords.x / size.x * hf.GetSizeX();
+		coords.y = coords.y / size.y * hf.GetSizeY();
+		int xpos = int(coords.x);
+		int ypos = int(coords.y);
+		double height = hf.at(xpos, ypos);
+		double silt = siltf.at(xpos, ypos) * 100.0;
+		double sand = sandf.at(xpos, ypos) * 100.0;
+		double clay = clayf.at(xpos, ypos) * 100.0;
+		std::string soilTexture = classifySoilTexture(sand, silt, clay);
+		ImGui::SetTooltip("coords: %d, %d\nheight: %.2f\nsilt: %.2f%\nsand: %.2f%\nclay: %.2f%\ntexture class: %s", int(coords.x), int(coords.y), height, silt, sand, clay, soilTexture.c_str());
+
+
+
+		// ImGui::SetTooltip("%d, %d", int(mousepos.x-startpos.x), int(mousepos.y-startpos.y));
+		ImGui::EndTooltip();
+	}
+}
 
 /*!
 \brief User interface for the application.
@@ -307,6 +415,7 @@ static void GUI()
 				GetTerrain();
 				widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
 				widget->initializeGL();
+				get_soil_texture(true);
 
 				ResetCamera();
 			}
@@ -359,6 +468,9 @@ static void GUI()
 				LoadTerrain();
 
 				widget->initializeGL();
+				gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+				get_soil_texture(true);
+				widget->SetAlbedo(albedoTexture);
 
 				ResetCamera();
 
@@ -379,7 +491,7 @@ static void GUI()
 					m_init_thermal = false;
 					m_init_deposition = false;
 				}
-				gpu_ds.Step(1);
+				gpu_ds.Step(10);
 				get_soil_texture(true);
 				widget->SetAlbedo(albedoTexture);
 
@@ -388,23 +500,29 @@ static void GUI()
 		}
 		if (ImGui::BeginTabBar("ImageTabs"))
 		{
-
+			static int imgsz = 512;
+			static bool hovered = false; // use for all tabs
+			static ImVec2 tooltip_coords = ImVec2(0, 0);
 			if (ImGui::BeginTabItem("Input")) {
-				ImGui::Image((ImTextureID) m_input_soil_texture, ImVec2(512, 512));
+				ImGui::Image((ImTextureID) m_input_soil_texture, ImVec2(imgsz, imgsz));
+				ShowSoilTooltip();
 				ImGui::EndTabItem();
 			}
 
 			if (ImGui::BeginTabItem("Sim result"))
 			{
-				ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
+				ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(imgsz, imgsz));
+				ShowSoilTooltip();
 				ImGui::EndTabItem();
 			}
 
 			if (ImGui::BeginTabItem("Satellite reference"))
 			{
-				ImGui::Image((ImTextureID) m_satellite_texture, ImVec2(512, 512));
+				ImGui::Image((ImTextureID) m_satellite_texture, ImVec2(imgsz, imgsz));
+				ShowSoilTooltip();
 				ImGui::EndTabItem();
 			}
+
 
 			ImGui::EndTabBar();
 		}
@@ -445,21 +563,26 @@ static void GUI()
 
 }
 
+
 void get_soil_texture(bool fetch)
 {
 	if (fetch) {
 		gpu_ds.GetSoilData(siltf, sandf, clayf);
 	}
-	auto siltimg = siltf.CreateImage();
-	auto sandimg = sandf.CreateImage();
-	auto clayimg = clayf.CreateImage();
+	auto siltimg = siltf.GetFloatData();
+	auto sandimg = sandf.GetFloatData();
+	auto clayimg = clayf.GetFloatData();
 
-	int nx = siltimg.GetSizeX();
-	int ny = siltimg.GetSizeY();
+	int nx = siltf.GetSizeX();
+	int ny = siltf.GetSizeY();
 	auto colors = std::vector<Color8>(nx*ny);
 
 	for (int i = 0; i < nx*ny; i++) {
-		colors[i] = Color8(siltimg.Data()[i].r, sandimg.Data()[i].g, clayimg.Data()[i].b, 255);
+		colors[i] = Color8(
+			static_cast<unsigned char>(siltimg[i] * 255),
+			static_cast<unsigned char>(sandimg[i] * 255),
+			static_cast<unsigned char>(clayimg[i] * 255),
+			255); // alpha channel set to 255
 	}
 	albedoTexture = Texture2D(colors, nx, ny);
 	widget->SetAlbedo(albedoTexture);
@@ -481,30 +604,13 @@ void load_soil()
 	std::vector<double> clayfield(nx*ny);
 	std::vector<double> depthfield(nx*ny);
 
-	// for (int row = 0; row < 2; row++) {
-	// 	for (int col = 0; col < 2; col++) {
-	// 		int pixel_index = (row * nx + col) * n;  // Base index for this pixel
-	//
-	// 		std::cout << "Pixel (" << row << "," << col << "): "
-	// 				  << "Silt=" << raw_data[pixel_index + 0] << ", "
-	// 				  << "Sand=" << raw_data[pixel_index + 1] << ", "
-	// 				  << "Clay=" << raw_data[pixel_index + 2] << ", "
-	// 				  << "Depth=" << raw_data[pixel_index + 3] << std::endl;
-	// 	}
-	// }
 	std::cout << "Loaded " << nx << "x" << ny << " image with " << n << " channels" << std::endl;
 	for (int i = 0; i < nx*ny; i++) {
-		// Don't normalize! Pass raw percentage values if that's what the data contains
-		// or normalize to the range that ScalarField2(box, nx, ny, vector) expects
-
-		double silt = double(raw_data[i*n + 0]);
-
 		// PNG stores 0-100 percentages in 16-bit format:
 		siltfield[i] = double(raw_data[i*n + 0]) / 100.0;
 		sandfield[i] = double(raw_data[i*n + 1]) / 100.0;
 		clayfield[i] = double(raw_data[i*n + 2]) / 100.0;
 		depthfield[i] = double(raw_data[i*n + 3]);
-
 	}
 
 	stbi_image_free(raw_data);
@@ -520,14 +626,18 @@ void load_soil()
 
 	std::cout << "Silt: " << siltf.GetSizeX() << ", " << siltf.GetSizeY() << std::endl;
 
-	auto siltimg = siltf.CreateImage();
-	auto sandimg = sandf.CreateImage();
-	auto clayimg = clayf.CreateImage();
+	auto siltimg = siltf.GetFloatData();
+	auto sandimg = sandf.GetFloatData();
+	auto clayimg = clayf.GetFloatData();
 
 	auto colors = std::vector<Color8>(nx*ny);
 
 	for (int i = 0; i < nx*ny; i++) {
-		colors[i] = Color8(siltimg.Data()[i].r, sandimg.Data()[i].g, clayimg.Data()[i].b, 255);
+		colors[i] = Color8(
+			static_cast<unsigned char>(siltimg[i] * 255),
+			static_cast<unsigned char>(sandimg[i] * 255),
+			static_cast<unsigned char>(clayimg[i] * 255),
+			255); // alpha channel set to 255
 	}
 	albedoTexture = Texture2D(colors, nx, ny);
 	std::string outpath = std::string(RESOURCE_DIR) + "/test.png";
@@ -606,6 +716,7 @@ int main()
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 	// gpu_ds.Step(2);
+	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
 
 
 	// Main loop

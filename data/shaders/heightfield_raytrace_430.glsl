@@ -46,7 +46,7 @@ float Bilinear(float a00, float a10, float a11, float a01, float u, float v) {
 }
 
 float at(int i, int j) {
-	return heightfield[j * texSize.x + i];
+	return heightfield[j * texSize.x + (texSize.x- i - 1)];
 }
 
 void GetUV(vec2 p, out vec2 uv, out int i, out int j) {
@@ -240,9 +240,9 @@ vec4 ShadeSkyBlue(in vec3 d) {
 	return vec4(color, 1.0);
 }
 
-const vec4 silt_orange = vec4(1.0, 0.5, 0.0, 1.0);
-const vec4 sand_yellow = vec4(0.0, 1.0, 0.5, 1.0);
-const vec4 clay_red = vec4(1.0, 0.0, 0.5, 1.0);
+const vec4 silt_orange = vec4(0.5, 0.5, 0.0, 1.0);
+const vec4 sand_yellow = vec4(0.8, 0.7, 0.5, 1.0);
+const vec4 clay_col = vec4(vec3(45, 63, 35)/255.0, 1.0);
 // Compute terrain color
 // p: intersection point on terrain
 // returns terrain color.
@@ -259,12 +259,12 @@ vec4 ShadeTerrain(vec3 p) {
 	}
 	else if (shadingMode == 1)
 	{
-		vec4 tex = Albedo(p.xy);
-		vec4 col = vec4(vec3(0.0), 1.0);
-		col = mix(col, silt_orange, tex.r * 0.5);
-		col = mix(col, sand_yellow, tex.g * 0.5);
-		col = mix(col, clay_red, tex.b * 0.5);
-		col = tex; // comment out for color map
+		vec4 tex = Albedo(vec2(1.0- p.x, p.y));
+//		tex.rgb = pow(tex.rgb, vec3(5.6)); // gamma correction
+//		vec4 col = vec4(vec3(0.0), 1.0);
+//		col = silt_orange * tex.r + sand_yellow * tex.g + clay_col * tex.b;
+		vec4 col = tex;
+//		col = normalize(tex);
 		vec3 light = -normalize(lightDir);
 		vec3 viewDir = normalize(CamPos - p);
 		vec3 n = Normal(p, (b - a) / texSize);
