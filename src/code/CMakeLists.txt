@@ -1,4 +1,6 @@
-add_executable(main)
+add_executable(main
+        src/inspectwidget.cpp
+        src/inspectwidget.h)
 target_sources(main
     PRIVATE
     include/array2.h

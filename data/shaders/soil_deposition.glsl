@@ -205,7 +205,7 @@ vec3 calcDetachRatio(vec3 soiltex, float streamPower, float sed_total) {
     }
 
     vec3 small_agg_comp = vec3(soiltex.r/(soiltex.r+soiltex.b),
-                                0.0f,
+                                0.00f,
                                 soiltex.b/(soiltex.g+soiltex.g));
     vec3 large_agg_comp = vec3(soiltex.r - primary_silt - small_aggregate*small_agg_comp.r,
                                 soiltex.g - primary_sand,
@@ -325,7 +325,7 @@ void main() {
 	}
 //        soiltex = AddRatio(soiltex, streamPower * sed * SoilTexIncomingWeighted(p));
 
-    soiltex = AddRatio(soiltex, deposit/200 * SoilTexIncomingWeighted(p, streamPower, sed));
+    soiltex = AddRatio(soiltex, 0.05 * deposit * SoilTexIncomingWeighted(p, streamPower, sed));
     sed = max(0., sed - deposit);
 //
 //    soiltex = AddRatio(soiltex, 0.1 * sed * SoilTexIncomingWeighted(p));
@@ -333,6 +333,7 @@ void main() {
 
     // Detach
     sed += 0.1 * streamPower;
+//    soiltex = AddRatio(soiltex, min(0.0f, -0.001f * streamPower) * calcDetachRatio(soiltex, streamPower, sed));
 
     // write udpated values
     out_terrain[id] = height;

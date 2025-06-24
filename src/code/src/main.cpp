@@ -3,6 +3,7 @@
 #include "scalarfield2.h"
 #include "gpu_shader.h"
 #include "texture.h"
+#include "inspectwidget.h"
 #include "write_16_png.h"
 #include "ImFileDialog.h"
 #include <imgui.h>
@@ -40,6 +41,8 @@ static bool m_init_deposition = false;
 static bool m_init_soil_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
+
+static InspectWidget inspectwidget;
 
 void get_soil_texture(bool fetch = false);
 void load_soil();
@@ -522,6 +525,7 @@ static void GUI()
 				ShowSoilTooltip();
 				ImGui::EndTabItem();
 			}
+			// inspectwidget.render_imgui();
 
 
 			ImGui::EndTabBar();
