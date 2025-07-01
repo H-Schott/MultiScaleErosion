@@ -24,6 +24,7 @@ static GPU_Erosion gpu_e;
 static GPU_Thermal gpu_t;
 static GPU_Deposition gpu_d;
 static GPU_SoilDeposition gpu_ds;
+static GPU_HydraulicErosion gpu_he;
 static Texture2D albedoTexture;
 static int shadingMode;
 
@@ -34,11 +35,13 @@ static bool m_run_erosion     = false;
 static bool m_run_thermal     = false;
 static bool m_run_deposition  = false;
 static bool m_run_soil_deposition = false;
+static bool m_run_hydraulic_erosion = false;
 
 static bool m_init_erosion    = false;
 static bool m_init_thermal    = false;
 static bool m_init_deposition = false;
 static bool m_init_soil_deposition = false;
+static bool m_init_hydraulic_erosion = false;
 
 static GLuint m_terrain_buffer = 0;
 
@@ -312,6 +315,8 @@ static void ShowSoilTooltip()
 	}
 }
 
+void get_soil_texture_hydro(bool cond);
+
 /*!
 \brief User interface for the application.
 */
@@ -456,6 +461,12 @@ static void GUI()
 			ImGui::Text("Soil Deposition");
 			ImGui::Checkbox("Run SD", &m_run_soil_deposition);
 		}
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			ImGui::Text("Hydraulic Erosion");
+			ImGui::Checkbox("Run HE", &m_run_hydraulic_erosion);
+		}
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
@@ -486,7 +497,7 @@ static void GUI()
 				shadingMode = (shadingMode + 1) % 3;
 				widget->SetShadingMode(shadingMode);
 			}
-			if (ImGui::Button("Run 1 step Soil Deposition")) {
+			if (ImGui::Button("Run 10 step Soil Deposition")) {
 				if (!m_init_soil_deposition) {
 					gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 					m_init_soil_deposition = true;
@@ -496,6 +507,20 @@ static void GUI()
 				}
 				gpu_ds.Step(10);
 				get_soil_texture(true);
+				widget->SetAlbedo(albedoTexture);
+
+			}
+			if (ImGui::Button("Run 1 step Hydraulic Erosion")) {
+				if (!m_init_hydraulic_erosion) {
+					gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+					m_init_hydraulic_erosion = true;
+					m_init_soil_deposition = false;
+					m_init_erosion = false;
+					m_init_thermal = false;
+					m_init_deposition = false;
+				}
+				gpu_he.Step(10);
+				get_soil_texture_hydro(true);
 				widget->SetAlbedo(albedoTexture);
 
 			}
@@ -572,6 +597,30 @@ void get_soil_texture(bool fetch)
 {
 	if (fetch) {
 		gpu_ds.GetSoilData(siltf, sandf, clayf);
+	}
+	auto siltimg = siltf.GetFloatData();
+	auto sandimg = sandf.GetFloatData();
+	auto clayimg = clayf.GetFloatData();
+
+	int nx = siltf.GetSizeX();
+	int ny = siltf.GetSizeY();
+	auto colors = std::vector<Color8>(nx*ny);
+
+	for (int i = 0; i < nx*ny; i++) {
+		colors[i] = Color8(
+			static_cast<unsigned char>(siltimg[i] * 255),
+			static_cast<unsigned char>(sandimg[i] * 255),
+			static_cast<unsigned char>(clayimg[i] * 255),
+			255); // alpha channel set to 255
+	}
+	albedoTexture = Texture2D(colors, nx, ny);
+	widget->SetAlbedo(albedoTexture);
+}
+
+void get_soil_texture_hydro(bool fetch)
+{
+	if (fetch) {
+		gpu_he.GetSoilData(siltf, sandf, clayf);
 	}
 	auto siltimg = siltf.GetFloatData();
 	auto sandimg = sandf.GetFloatData();
@@ -719,6 +768,7 @@ int main()
 
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+	gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 	// gpu_ds.Step(2);
 	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
 
@@ -731,6 +781,7 @@ int main()
 			m_init_thermal = false;
 			m_init_soil_deposition = false;
 			m_init_deposition = false;
+			m_init_hydraulic_erosion = false;
 
 			gpu_e.Step(100);
 
@@ -743,6 +794,7 @@ int main()
 			m_init_thermal = true;
 			m_init_soil_deposition = false;
 			m_init_deposition = false;
+			m_init_hydraulic_erosion = false;
 
 			gpu_t.Step(200);
 
@@ -755,6 +807,7 @@ int main()
 			m_init_thermal = false;
 			m_init_soil_deposition = false;
 			m_init_deposition = true;
+			m_init_hydraulic_erosion = false;
 
 			gpu_d.Step(50);
 
@@ -766,11 +819,25 @@ int main()
 			m_init_thermal = false;
 			m_init_deposition = false;
 			m_init_soil_deposition = true;
+			m_init_hydraulic_erosion = false;
 
 			gpu_ds.Step(50);
 
 			get_soil_texture(true);
 			widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
+			widget->UpdateInternal();
+		} else if (m_run_hydraulic_erosion) {
+			if (!m_init_hydraulic_erosion) gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+			m_init_erosion = false;
+			m_init_thermal = false;
+			m_init_deposition = false;
+			m_init_soil_deposition = false;
+			m_init_hydraulic_erosion = true;
+
+			gpu_he.Step(50);
+
+			get_soil_texture_hydro(true);
+			widget->SetTerrainBuffer(gpu_he.GetTerrainGLuint());
 			widget->UpdateInternal();
 		}
 

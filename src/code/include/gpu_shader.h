@@ -117,5 +117,37 @@ public:
 	void GetSoilData(ScalarField2 &siltf, ScalarField2 &sandf, ScalarField2 &clayf);
 };
 
+class GPU_HydraulicErosion : public GPU_Deposition {
+	// GLuint siltBuffer = 0;
+	// GLuint tempSiltBuffer = 0;
+	// GLuint sandBuffer = 0;
+	// GLuint tempSandBuffer = 0;
+	// GLuint clayBuffer = 0;
+	// GLuint tempClayBuffer = 0;
+	GLuint soilTexBuffer = 0;
+	GLuint tempSoilTexBuffer = 0;
+	GLuint waterBuffer = 0;
+	GLuint tempWaterBuffer = 0;
+	GLuint velocityBuffer = 0;
+	GLuint tempVelocityBuffer = 0;
+	GLuint fluxBuffer = 0;
+	GLuint tempFluxBuffer = 0;
+	// std::vector<float> tmpSilt;
+	// std::vector<float> tmpSand;
+	// std::vector<float> tmpClay;
+	std::vector<float> tmpSoilTex3;
+
+public:
+	~GPU_HydraulicErosion();
+
+	void Init(const ScalarField2 &hf, const ScalarField2 &siltf, const ScalarField2 &sandf, const ScalarField2 &clayf, GLuint
+			  t_buffer);
+
+	void Step(int n);
+
+	void GetSoilData(ScalarField2 &siltf, ScalarField2 &sandf, ScalarField2 &clayf);
+};
+
+
 
 #endif
