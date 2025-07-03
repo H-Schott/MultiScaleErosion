@@ -450,7 +450,7 @@ vec2 GetVelocityAt(vec2 pos) {
 vec2 SemiLagrangianBacktrackSimple(ivec2 p, float dt) {
     float length_x = cellDiag.x;
     float length_y = cellDiag.y;
-    vec2 pos = vec2(float(p.x) *  + 0.5f, float(p.y) + 0.5f);
+    vec2 pos = vec2(float(p.x) + 0.5f, float(p.y) + 0.5f);
 //    vec2 pos = GetCellCenter(p);
 
     // Get velocity at current position
@@ -544,9 +544,10 @@ void main() {
 //    float d_h_bottom = height + water - in_terrain[ToIndex1D(p + ivec2(0, -1))] - Water(p + ivec2(0, -1));
 
     leftoutflow = max(0.0f, leftoutflow + d_t * length_y* g * d_h_left / length_x);
-    rightoutflow = max(0.0f, rightoutflow +d_t *  length_y* 9.8 * d_h_right / length_x);
-    topoutflow = max(0.0f, topoutflow + d_t * length_x* 9.8 * d_h_top / length_y);
-    bottomoutflow = max(0.0f, bottomoutflow + d_t * length_x* 9.8 * d_h_bottom/ length_y);
+    rightoutflow = max(0.0f, rightoutflow +d_t *  length_y* g * d_h_right / length_x);
+    topoutflow = max(0.0f, topoutflow + d_t * length_x*  g * d_h_top / length_y);
+    bottomoutflow = max(0.0f, bottomoutflow + d_t * length_x* g * d_h_bottom/ length_y);
+
 
 //    float scaling_factor = min(1.0f, (water*cellArea)/((leftoutflow + rightoutflow + topoutflow + bottomoutflow) * d_t));
     float total_outflow = leftoutflow + rightoutflow + topoutflow + bottomoutflow;
@@ -572,10 +573,8 @@ void main() {
     if (p.y > 0) {
         bottominflow = outflow_flux(p + ivec2(0, -1)).b;
     }
-//    leftinflow = max(0.0f, leftinflow + d_t * length_y *length_x* 9.8 * -d_h_left / length_x);
-//    rightinflow = max(0.0f, rightinflow + d_t * length_y *length_x* 9.8 * -d_h_right / length_x);
-//    topinflow = max(0.0f, topinflow + d_t * length_x * length_y*9.8 * -d_h_top / length_y);
-//    bottominflow = max(0.0f, bottominflow + d_t * length_x * length_y*9.8 * -d_h_bottom / length_y);
+
+    vec3 soiltex = GetSoilTex(p);
 
     float d_V = leftinflow + rightinflow + topinflow + bottominflow - leftoutflow - rightoutflow - topoutflow - bottomoutflow;
     d_V *= d_t;
@@ -607,8 +606,8 @@ void main() {
 //    ivec2 back_velocity = ivec2(int(-vel.x * d_t), int(-vel.y * d_t));
 //    vec2 departure_point = SemiLagrangianBacktrackSimple(p, d_t);
     vec2 departure_point = vec2(float(p.x), float(p.y));
-    departure_point += (vel / cellDiag) * d_t; // move back in time
-    departure_point = SemiLagrangianBacktrackSimple(p, d_t);
+    departure_point -= (vel / cellDiag) * d_t; // move back in time
+//    departure_point = SemiLagrangianBacktrackSimple(p, d_t);
 //    float transported_sed = SampleSedimentBilinear(departure_point);
     float transported_sed = SedimentBilinear(departure_point);
 //    float sed = in_sed[id];
@@ -642,10 +641,10 @@ void main() {
 
 //    out_soiltex[id].si = GetCellCenter(p).x / (100.0f * 100.0f);
 //    out_soiltex[id].sa = GetCellCenter(p).y / (100.0f * 100.0f);
-    out_soiltex[id].si = sed *100.0f;
+    out_soiltex[id].si = sed /100.0f;
     out_soiltex[id].cl = water_2 * 2560.0f/ 100.0f;
-//    out_soiltex[id].si = departure_point.x / (100.0f * cellDiag.x);
-//    out_soiltex[id].sa = departure_point.y/(100.0f*cellDiag.y);
+//    out_soiltex[id].si = departure_point.x / (100.0f );
+//    out_soiltex[id].sa = departure_point.y/(100.0f);
 //    out_soiltex[id].si = vel.x /100.0f;
 //    out_soiltex[id].sa = vel.y /100.0f;
 //    ivec2 back_point = p + back_velocity;

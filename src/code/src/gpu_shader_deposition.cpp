@@ -16,6 +16,7 @@ GPU_Deposition::~GPU_Deposition() {
 
 void GPU_Deposition::Init(const ScalarField2& hf, GLuint t_buffer) {
 	// Prepare data for first step
+
 	nx = hf.GetSizeX();
 	ny = hf.GetSizeY();
 	totalBufferSize = hf.VertexSize();

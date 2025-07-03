@@ -483,6 +483,7 @@ static void GUI()
 
 				widget->initializeGL();
 				gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+				gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 				get_soil_texture(true);
 				widget->SetAlbedo(albedoTexture);
 
@@ -492,6 +493,7 @@ static void GUI()
 				m_init_thermal = false;
 				m_init_deposition = false;
 				m_init_soil_deposition = false;
+				m_init_hydraulic_erosion = false;
 			}
 			if (ImGui::Button("Shader mode")) {
 				shadingMode = (shadingMode + 1) % 3;
