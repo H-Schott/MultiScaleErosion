@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.6)
 cmake_policy(SET CMP0076 NEW)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.6)
 
 project(MultiScaleErosion)
 

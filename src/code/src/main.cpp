@@ -275,7 +275,7 @@ static void GUI()
 	if (ifd::FileDialog::Instance().IsDone("LoadDEM_Dialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {
 			std::string res = ifd::FileDialog::Instance().GetResult().u8string();
-			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 3000., true);
+			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 1400., true);
 			LoadTerrain();
 			widget->initializeGL();
 			ResetCamera();
