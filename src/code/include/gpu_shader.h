@@ -96,12 +96,17 @@ public:
 };
 
 class GPU_SoilDeposition : public GPU_Deposition {
-	GLuint siltBuffer = 0;
-	GLuint tempSiltBuffer = 0;
-	GLuint sandBuffer = 0;
-	GLuint tempSandBuffer = 0;
-	GLuint clayBuffer = 0;
-	GLuint tempClayBuffer = 0;
+	// GLuint siltBuffer = 0;
+	// GLuint tempSiltBuffer = 0;
+	// GLuint sandBuffer = 0;
+	// GLuint tempSandBuffer = 0;
+	// GLuint clayBuffer = 0;
+	// GLuint tempClayBuffer = 0;
+	GLuint soiltexBuffer = 0;
+	GLuint tempSoiltexBuffer = 0;
+	GLuint sedtexBuffer = 0;
+	GLuint tempSedtexBuffer = 0;
+	std::vector<float> tmpSoiltex;
 	std::vector<float> tmpSilt;
 	std::vector<float> tmpSand;
 	std::vector<float> tmpClay;

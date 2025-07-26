@@ -14,18 +14,35 @@ layout(binding = 3, std430) writeonly buffer OutStream  { float out_stream[]; };
 layout(binding = 4, std430) readonly  buffer InSed      { float in_sed[]; };
 layout(binding = 5, std430) writeonly buffer OutSed     { float out_sed[]; };
 
-// silt
-layout(binding = 6, std430) readonly  buffer InSilt      { float in_silt[]; };
-layout(binding = 7, std430) writeonly buffer OutSilt     { float out_silt[]; };
+struct SoilTexture {
+    float silt;
+    float sand;
+    float clay;
+};
 
-// sand
-layout(binding = 8, std430) readonly  buffer InSand      { float in_sand[]; };
-layout(binding = 9, std430) writeonly buffer OutSand     { float out_sand[]; };
+// soil texture
 
-// clay
-layout(binding = 10, std430) readonly  buffer InClay      { float in_clay[]; };
-layout(binding = 11, std430) writeonly buffer OutClay     { float out_clay[]; };
+layout(binding = 6, std430) readonly  buffer InSoilTex { SoilTexture in_soiltex[]; };
+layout(binding = 7, std430) writeonly buffer OutSoilTex { SoilTexture out_soiltex[]; };
 
+// sediment texture
+layout(binding = 8, std430) readonly  buffer InSedTex { SoilTexture in_sedtex[]; };
+layout(binding = 9, std430) writeonly buffer OutSedTex { SoilTexture out_sedtex[]; };
+
+
+//
+//// silt
+//layout(binding = 6, std430) readonly  buffer InSilt      { float in_silt[]; };
+//layout(binding = 7, std430) writeonly buffer OutSilt     { float out_silt[]; };
+//
+//// sand
+//layout(binding = 8, std430) readonly  buffer InSand      { float in_sand[]; };
+//layout(binding = 9, std430) writeonly buffer OutSand     { float out_sand[]; };
+//
+//// clay
+//layout(binding = 10, std430) readonly  buffer InClay      { float in_clay[]; };
+//layout(binding = 11, std430) writeonly buffer OutClay     { float out_clay[]; };
+//
 
 uniform int nx;
 uniform int ny;
@@ -88,7 +105,13 @@ float Sed(ivec2 p) {
 vec3 SoilTex(ivec2 p) {
     if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return vec3(0.0f);
     int index_p = ToIndex1D(p.x, p.y);
-    return vec3(in_silt[index_p], in_sand[index_p], in_clay[index_p]);
+    return vec3(in_soiltex[index_p].silt, in_soiltex[index_p].sand, in_soiltex[index_p].clay);
+}
+
+vec3 SedTex(ivec2 p) {
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return vec3(0.0f);
+    int index_p = ToIndex1D(p.x, p.y);
+    return vec3(in_sedtex[index_p].silt, in_sedtex[index_p].sand, in_sedtex[index_p].clay);
 }
 
 ivec2 GetFlowSteepest(ivec2 p) {
@@ -185,7 +208,7 @@ float calcSmallAggregate(vec3 soiltex) {
 }
 
 //https://www.ars.usda.gov/ARSUserFiles/60600505/rusle/rusle2_science_doc.pdf pg 133
-vec3 calcDetachRatio(vec3 soiltex, float streamPower, float sed_total) {
+vec3 calcDetachRatio(vec3 soiltex) {
     float primary_clay = soiltex.b * 0.26;
     float primary_sand = soiltex.g * pow(max(1.0 - soiltex.b, 0.0), 5);
     float small_aggregate = calcSmallAggregate(soiltex);
@@ -309,7 +332,7 @@ vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sed_total) {
         GetFlowWeighted(q, sn);
         float ss = sn[(i + 4) % 8];
         if (ss > 0.0f) {
-            vec3 detach = calcDetachRatio(SoilTex(q), streamPower, sed_total);
+            vec3 detach = calcDetachRatio(SoilTex(q));
 //            detach.r
 //            soiltex += ss * detach;
 //            soiltex = AddRatio(soiltex, ss * SoilTex(q));
@@ -328,12 +351,13 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float streamPower) {
     float cur_surf_area = dot(SoilTex(p), vec3(4.0f, 0.05f, 20.0f));
     float ss = ComputeIncomingFlowSteepest(p);
     ivec2 q = p + GetFlowSteepest(p);
-    vec3 detach = calcDetachRatio(SoilTex(q), ss, 0.0f);
+//    vec3 detach = calcDetachRatio(SoilTex(q), ss, 0.0f);
+    vec3 incoming_soiltex = SedTex(q);
 
-    float incoming_surf_area = dot(detach, vec3(4.0f, 0.05f, 20.0f));
+    float incoming_surf_area = dot(incoming_soiltex, vec3(4.0f, 0.05f, 20.0f));
     float enrichment_ratio = incoming_surf_area/cur_surf_area;
 
-    vec3 incoming = ss * enrichment_ratio * detach * streamPower;
+    vec3 incoming = ss * incoming_soiltex * streamPower;
 //    soiltex = AddRatio(soiltex, incoming);
     return incoming;
 }
@@ -347,7 +371,7 @@ vec3 ComputeIncomingSoilTexSteepest(ivec2 p) {
         if (q + fd == p) {
             stream += Stream(q);
             float ss = Stream(q);
-            vec3 detach = calcDetachRatio(SoilTex(q), ss, 0.0f);
+            vec3 detach = calcDetachRatio(SoilTex(q));
             float incoming_surf_area = dot(detach, vec3(4.0f, 0.05f, 20.0f));
 //            float enrichment_ratio = incoming_surf_area/cur_surf_area;
             float enrichment_ratio = 1.0f;
@@ -384,7 +408,9 @@ void main() {
     float sed = in_sed[id];
 
     float initial_sed = sed;
-    vec3 soiltex = vec3(in_silt[id], in_sand[id], in_clay[id]);
+    vec3 soiltex = vec3(in_soiltex[id].silt, in_soiltex[id].sand, in_soiltex[id].clay);
+    vec3 sedtex = vec3(in_sedtex[id].silt, in_sedtex[id].sand, in_sedtex[id].clay);
+//    vec3 soiltex = vec3(in_silt[id], in_sand[id], in_clay[id]);
 
 
     float steepest_slope = SteepestSlope(p);
@@ -423,15 +449,18 @@ void main() {
 
     // Detach
     sed += 0.1 * streamPower;
-//    soiltex = AddRatio(soiltex, min(0.0f, -0.001f * streamPower) * calcDetachRatio(soiltex, streamPower, sed));
+    vec3 outsed = AddRatio(sedtex, sed/height* calcDetachRatio(soiltex));
 
     // write udpated values
     out_terrain[id] = height;
     out_stream[id] = stream;
     out_sed[id] = sed;
-    out_silt[id] = soiltex.x;
-    out_sand[id] = soiltex.y;
-    out_clay[id] = soiltex.z;
+    out_soiltex[id] = SoilTexture(soiltex.r, soiltex.g, soiltex.b);
+//    out_soiltex[id] = SoilTexture(outsed.r, outsed.g, outsed.b);
+    out_sedtex[id] = SoilTexture(outsed.r, outsed.g, outsed.b);
+//    out_silt[id] = soiltex.x;
+//    out_sand[id] = soiltex.y;
+//    out_clay[id] = soiltex.z;
 }
 
 #endif
