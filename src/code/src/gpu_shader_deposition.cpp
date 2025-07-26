@@ -118,15 +118,6 @@ GPU_SoilDeposition::~GPU_SoilDeposition()
 	glDeleteBuffers(1, &sedtexBuffer);
 	glDeleteBuffers(1, &tempSedtexBuffer);
 
-	// glDeleteBuffers(1, &siltBuffer);
-	// glDeleteBuffers(1, &tempSiltBuffer);
-	//
-	// glDeleteBuffers(1, &sandBuffer);
-	// glDeleteBuffers(1, &tempSandBuffer);
-	//
-	// glDeleteBuffers(1, &clayBuffer);
-	// glDeleteBuffers(1, &tempClayBuffer);
-
 	release_program(simulationShader);
 }
 
@@ -204,31 +195,6 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSedtexBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * 3 * totalBufferSize, &tmpSoilTex.front(), GL_STREAM_READ);
 
-
-	// if (siltBuffer == 0) glGenBuffers(1, &siltBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, siltBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSilt.front(), GL_STREAM_READ);
-	//
-	// if (tempSiltBuffer == 0) glGenBuffers(1, &tempSiltBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSiltBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSilt.front(), GL_STREAM_READ);
-	//
-	// if (sandBuffer == 0) glGenBuffers(1, &sandBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, sandBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSand.front(), GL_STREAM_READ);
-	//
-	// if (tempSandBuffer == 0) glGenBuffers(1, &tempSandBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSandBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSand.front(), GL_STREAM_READ);
-	//
-	// if (clayBuffer == 0) glGenBuffers(1, &clayBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, clayBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpClay.front(), GL_STREAM_READ);
-	//
-	// if (tempClayBuffer == 0) glGenBuffers(1, &tempClayBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempClayBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpClay.front(), GL_STREAM_READ);
-
 	// Uniforms - just once
 	glUseProgram(simulationShader);
 
@@ -259,13 +225,6 @@ void GPU_SoilDeposition::Step(int n) {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, sedtexBuffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, tempSedtexBuffer);
 
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, siltBuffer);
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, tempSiltBuffer);
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, sandBuffer);
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, tempSandBuffer);
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, clayBuffer);
-		// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, tempClayBuffer);
-
 		glDispatchCompute(dispatchSize, dispatchSize, 1);
 		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -275,9 +234,7 @@ void GPU_SoilDeposition::Step(int n) {
 		std::swap(sedimentBuffer, tempSedimentBuffer);
 		std::swap(soiltexBuffer, tempSoiltexBuffer);
 		std::swap(sedtexBuffer, tempSedtexBuffer);
-		// std::swap(siltBuffer, tempSiltBuffer);
-		// std::swap(sandBuffer, tempSandBuffer);
-		// std::swap(clayBuffer, tempClayBuffer);
+
 	}
 
 	glUseProgram(0);
@@ -290,23 +247,7 @@ void GPU_SoilDeposition::GetSoilData(ScalarField2& siltf, ScalarField2& sandf, S
 		sandf[i] = double(tmpSoiltex[i * 3 + 1]);
 		clayf[i] = double(tmpSoiltex[i * 3 + 2]);
 	}
-	// glGetNamedBufferSubData(siltBuffer, 0, sizeof(float) * totalBufferSize, tmpSilt.data());
-	// if (glGetError()) {
-	// 	return; // Handle error properly
-	// }
-	//
-	// for (int i = 0; i < totalBufferSize; i++)
-	// 	siltf[i] = double(tmpSilt[i]);
-	//
-	// glGetNamedBufferSubData(sandBuffer, 0, sizeof(float) * totalBufferSize, tmpSand.data());
-	//
-	// for (int i = 0; i < totalBufferSize; i++)
-	// 	sandf[i] = double(tmpSand[i]);
-	//
-	// glGetNamedBufferSubData(clayBuffer, 0, sizeof(float) * totalBufferSize, tmpClay.data());
-	//
-	// for (int i = 0; i < totalBufferSize; i++)
-	// 	clayf[i] = double(tmpClay[i]);
+
 }
 
 GPU_HydraulicErosion::~GPU_HydraulicErosion()
@@ -377,14 +318,6 @@ void GPU_HydraulicErosion::Init(const ScalarField2& hf, const ScalarField2& silt
 	if (tempBedrockBuffer == 0) glGenBuffers(1, &tempBedrockBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempBedrockBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
-
-	// if (streamBuffer == 0) glGenBuffers(1, &streamBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, streamBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
-	//
-	// if (tempStreamBuffer == 0) glGenBuffers(1, &tempStreamBuffer);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempStreamBuffer);
-	// glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
 
 	if (sedimentBuffer == 0) glGenBuffers(1, &sedimentBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sedimentBuffer);
