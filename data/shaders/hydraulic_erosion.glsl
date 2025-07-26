@@ -230,7 +230,7 @@ float calcSmallAggregate(vec3 soiltex) {
 }
 
 //https://www.ars.usda.gov/ARSUserFiles/60600505/rusle/rusle2_science_doc.pdf pg 133
-vec3 calcDetachRatio(vec3 soiltex, float streamPower, float sed_total) {
+vec3 calcDetachRatio(vec3 soiltex, float streamPower) {
     float primary_clay = soiltex.b * 0.26;
     float primary_sand = soiltex.g * pow(max(1.0 - soiltex.b, 0.0), 5);
     float small_aggregate = calcSmallAggregate(soiltex);
@@ -255,9 +255,25 @@ vec3 calcDetachRatio(vec3 soiltex, float streamPower, float sed_total) {
     vec3 large_agg_comp = vec3(soiltex.r - primary_silt - small_aggregate*small_agg_comp.r,
                                 soiltex.g - primary_sand,
                                 soiltex.b - primary_clay - small_aggregate*small_agg_comp.b);
-    if (large_agg_comp.b < 0.5f) {
-        small_aggregate *= 0.5f / large_agg_comp.b;
+//    if (large_agg_comp.b < 0.5f) {
+//        small_aggregate *= 0.5f / large_agg_comp.b;
+//    }
+    if (large_agg_comp.b < 0.5f * soiltex.b) {
+        //        small_aggregate *= 0.5f / large_agg_comp.b;
+        float fac = large_agg_comp.b / (0.5f * soiltex.b);
+        small_aggregate *= fac;
+        large_agg_comp.b = 0.5f * soiltex.b;
+        float large_agg = (1.0f - primary_sand - primary_clay - primary_silt - small_aggregate);
+        //        large_agg_comp.r = soiltex.r - primary_silt - small_aggregate * small_agg_comp.r;
     }
+
+    //account for density:
+    primary_silt *= 2.65f;
+    primary_clay *= 2.60f;
+    small_aggregate *= 1.80f;
+    large_agg *= 1.60f;
+    primary_sand *= 2.65f;
+
     sum += large_agg;
     primary_silt /= sum;
     primary_sand /= sum;
@@ -295,24 +311,24 @@ vec3 calcDetachRatio(vec3 soiltex, float streamPower, float sed_total) {
     return detachRatio;
 }
 
-vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sed_total) {
-    vec3 soiltex = vec3(0.0f);
-    for (int i = 0; i < 8; i++) {
-        ivec2 q = p + next8[i];
-        float sn[8];
-        GetFlowWeighted(q, sn);
-        float ss = sn[(i + 4) % 8];
-        if (ss > 0.0f) {
-            vec3 detach = calcDetachRatio(GetSoilTex(q), streamPower, sed_total);
-//            detach.r
-//            soiltex += ss * detach;
-//            soiltex = AddRatio(soiltex, ss * SoilTex(q));
-            soiltex = AddRatio(soiltex, ss * (Sed(q)/sed_total) * detach);
-//            soiltex += ss * SoilTex(q);
-        }
-    }
-    return soiltex;
-}
+//vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sed_total) {
+//    vec3 soiltex = vec3(0.0f);
+//    for (int i = 0; i < 8; i++) {
+//        ivec2 q = p + next8[i];
+//        float sn[8];
+//        GetFlowWeighted(q, sn);
+//        float ss = sn[(i + 4) % 8];
+//        if (ss > 0.0f) {
+//            vec3 detach = calcDetachRatio(GetSoilTex(q), streamPower, sed_total);
+////            detach.r
+////            soiltex += ss * detach;
+////            soiltex = AddRatio(soiltex, ss * SoilTex(q));
+//            soiltex = AddRatio(soiltex, ss * (Sed(q)/sed_total) * detach);
+////            soiltex += ss * SoilTex(q);
+//        }
+//    }
+//    return soiltex;
+//}
 
 bool CheckPit(ivec2 p) {
     for (int i = 0; i < 8; i++) {
@@ -575,6 +591,17 @@ void main() {
     }
 
     vec3 soiltex = GetSoilTex(p);
+    vec3 incoming_soiltex_left = GetSoilTex(p + ivec2(-1, 0));
+    vec3 incoming_soiltex_right = GetSoilTex(p + ivec2(1, 0));
+    vec3 incoming_soiltex_top = GetSoilTex(p + ivec2(0, 1));
+    vec3 incoming_soiltex_bottom = GetSoilTex(p + ivec2(0, -1));
+
+    incoming_soiltex_left = calcDetachRatio(incoming_soiltex_left, leftinflow);
+    incoming_soiltex_right = calcDetachRatio(incoming_soiltex_right, rightinflow);
+    incoming_soiltex_top = calcDetachRatio(incoming_soiltex_top, topinflow);
+    incoming_soiltex_bottom = calcDetachRatio(incoming_soiltex_bottom, bottominflow);
+
+
 
     float d_V = leftinflow + rightinflow + topinflow + bottominflow - leftoutflow - rightoutflow - topoutflow - bottomoutflow;
     d_V *= d_t;
@@ -599,7 +626,7 @@ void main() {
     float lmax = 1.0f - (max(0.0f, max_erosion_depth - water_2) / max_erosion_depth);
     lmax = clamp(lmax, 0.0f, 1.0f);
 
-    float capacity = K_transport_capacity * min(sin_tilt_angle, 0.05) * length(vel) * lmax;
+    float capacity = K_transport_capacity * min(sin_tilt_angle, 0.1) * length(vel) * lmax;
 
 
 
@@ -618,17 +645,25 @@ void main() {
         float erosion =  d_t* K_erosion * (capacity - sed);
         height -= erosion;
         sed += erosion;
-        //        water_2 -= erosion;
+//                water_2 -= erosion;
     } else {
-        float deposition =  d_t*K_deposition * (sed - capacity);
+        float deposition = d_t * K_deposition * (sed - capacity);
         height += deposition;
         sed -= deposition;
-        //        water_2 += deposition;
-    }
-//    Soiltex soiltex = in_soiltex[id];
-//    soiltex += 1.0f;
+        //                water_2 += deposition;
+//        soiltex = AddRatio(soiltex, incoming_soiltex_left * leftinflow * deposition);
+//        soiltex = AddRatio(soiltex, incoming_soiltex_right * rightinflow * deposition);
+//        soiltex = AddRatio(soiltex, incoming_soiltex_top * topinflow * deposition);
+//        soiltex = AddRatio(soiltex, incoming_soiltex_bottom * bottominflow * deposition);
+        vec3 incoming_soiltex = GetSoilTex(ivec2(departure_point));
+        incoming_soiltex = calcDetachRatio(incoming_soiltex, length(vel) );
+        float incoming_surf_area = dot(incoming_soiltex, vec3(4.0f, 0.05f, 20.0f));
+        float surf_area = dot(soiltex, vec3(4.0f, 0.05f, 20.0f));
+        float enrichment_ratio = incoming_surf_area / surf_area;
 
-//    sed = Sed(p + back_velocity);
+        soiltex = AddRatio(soiltex, incoming_soiltex * enrichment_ratio * deposition * d_t);
+    }
+    vec3 debug_detach = calcDetachRatio(soiltex, 1.0f);
 
     out_water[id] = water_2 * (1.0f - K_evaporation * d_t); // evaporation
     out_flux[id] = Flux(leftoutflow, rightoutflow, topoutflow, bottomoutflow);
@@ -636,28 +671,16 @@ void main() {
     out_terrain[id] = height;
     out_velocity[id] = vel;
 
-//    out_soiltex[id].si = cellDiag.x / 100.0f;
-//    out_soiltex[id].sa = cellDiag.y / 100.0f;
-
-//    out_soiltex[id].si = GetCellCenter(p).x / (100.0f * 100.0f);
-//    out_soiltex[id].sa = GetCellCenter(p).y / (100.0f * 100.0f);
-    out_soiltex[id].si = sed /100.0f;
-    out_soiltex[id].cl = water_2 * 2560.0f/ 100.0f;
-//    out_soiltex[id].si = departure_point.x / (100.0f );
-//    out_soiltex[id].sa = departure_point.y/(100.0f);
-//    out_soiltex[id].si = vel.x /100.0f;
-//    out_soiltex[id].sa = vel.y /100.0f;
-//    ivec2 back_point = p + back_velocity;
-//    if (back_point.x < 0 || back_point.x >= nx || back_point.y < 0 || back_point.y >= ny) {
-//        out_soiltex[id].si = 1.0f;
-//    }
-//    vec2 velsample = SemiLagrangianBacktrackSimple(p, d_t);
-//    out_soiltex[id].si = sed;
-//    out_soiltex[id].sa = velsample.y /100.0f;
-//    out_soiltex[id].cl = water_2 * 100.0f;
-
-//    out_soiltex[id].si = sed * 100.0f;
-
+//    out_soiltex[id].si = sed /100.0f;
+//    out_soiltex[id].cl = water_2 * 2560.0f/ 100.0f;
+    out_soiltex[id].si = soiltex.r;
+    out_soiltex[id].sa = soiltex.g;
+    out_soiltex[id].cl = soiltex.b;
+//    out_soiltex[id].si = debug_detach.r;
+//    out_soiltex[id].sa = debug_detach.g;
+//    out_soiltex[id].cl = debug_detach.b;
+//    out_soiltex[id].si = ivec2(departure_point).x/100.0f;
+//    out_soiltex[id].sa = ivec2(departure_point).y/100.0f;
 
     // -- end hydraulic erosion --
 //    float initial_sed = sed;

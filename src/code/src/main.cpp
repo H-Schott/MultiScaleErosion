@@ -521,7 +521,7 @@ static void GUI()
 					m_init_thermal = false;
 					m_init_deposition = false;
 				}
-				gpu_he.Step(10);
+				gpu_he.Step(1);
 				get_soil_texture_hydro(true);
 				widget->SetAlbedo(albedoTexture);
 
