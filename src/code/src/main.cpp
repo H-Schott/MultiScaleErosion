@@ -11,6 +11,8 @@
 #include "lodepng.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "geotiffio.h"
+#include "xtiffio.h"
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
@@ -499,7 +501,7 @@ static void GUI()
 				shadingMode = (shadingMode + 1) % 3;
 				widget->SetShadingMode(shadingMode);
 			}
-			if (ImGui::Button("Run 10 step Soil Deposition")) {
+			if (ImGui::Button("Run 1 step Soil Deposition")) {
 				if (!m_init_soil_deposition) {
 					gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 					m_init_soil_deposition = true;
@@ -507,7 +509,7 @@ static void GUI()
 					m_init_thermal = false;
 					m_init_deposition = false;
 				}
-				gpu_ds.Step(10);
+				gpu_ds.Step(1);
 				get_soil_texture(true);
 				widget->SetAlbedo(albedoTexture);
 
@@ -746,6 +748,16 @@ int main()
 
 	load_sat_png();
 
+	// TIFF* tif = XTIFFOpen(RESOURCE_DIR "/tifs/USGS_256_height.tif", "r");
+	// GTIF* gtif = GTIFNew(tif);
+	// int width, height;
+	// TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
+	// TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+	// std::cout << "width: " << width << ", height: " << height << std::endl;
+	// GTIFFree(gtif);
+	// XTIFFClose(tif);
+	// exit(0);
+	//
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 

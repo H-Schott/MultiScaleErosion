@@ -142,9 +142,6 @@ float ComputeIncomingFlow(ivec2 p) {
     return ComputeIncomingFlowWeighted(p);
 }
 
-
-
-
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
     int x = int(gl_GlobalInvocationID.x);

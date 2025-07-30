@@ -9,6 +9,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 #set(PNG_BUILD_ZLIB FALSE)
 #set(ZLIB_ROOT "C:/Users/GeomodCore/Documents/GitHub/MultiScaleErosion/build/_deps/zlib-src")
 
+find_package(GeoTIFF CONFIG REQUIRED)
+
 include(glfw)
 include(glm)
 include(glew)

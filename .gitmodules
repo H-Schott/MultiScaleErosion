@@ -1,0 +1,3 @@
+[submodule "geotiff"]
+	path = geotiff
+	url = https://github.com/cappelletto/geotiff.git

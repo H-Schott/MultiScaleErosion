@@ -321,11 +321,11 @@ void GPU_HydraulicErosion::Init(const ScalarField2& hf, const ScalarField2& silt
 
 	if (sedimentBuffer == 0) glGenBuffers(1, &sedimentBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sedimentBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSoilTex3.front(), GL_STREAM_READ);
 
 	if (tempSedimentBuffer == 0) glGenBuffers(1, &tempSedimentBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSedimentBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpSoilTex3.front(), GL_STREAM_READ);
 
 	if (soilTexBuffer == 0) glGenBuffers(1, &soilTexBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, soilTexBuffer);

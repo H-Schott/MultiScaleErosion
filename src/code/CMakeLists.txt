@@ -48,7 +48,8 @@ target_sources(main
     src/write_16_png.cpp
 )
 
-target_include_directories(main PRIVATE include)
+target_include_directories(main PRIVATE include
+    ${GeoTIFF_INCLUDE_DIRS})
 
 target_link_libraries(main
     PRIVATE
@@ -56,6 +57,7 @@ target_link_libraries(main
     glm
     libglew_static
     imgui
+    ${GeoTIFF_LIBRARIES}
 )
 
 # Set RESOURCE_DIR to point to source tree
