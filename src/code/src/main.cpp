@@ -11,8 +11,9 @@
 #include "lodepng.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
-#include "geotiffio.h"
-#include "xtiffio.h"
+// #include "geotiffio.h"
+// #include "xtiffio.h"
+#include "gdal_priv.h"
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
@@ -747,21 +748,112 @@ int main()
 	window->SetUICallback(GUI);
 
 	load_sat_png();
-
-	// TIFF* tif = XTIFFOpen(RESOURCE_DIR "/tifs/USGS_256_height.tif", "r");
-	// GTIF* gtif = GTIFNew(tif);
-	// int width, height;
-	// TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
-	// TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
-	// std::cout << "width: " << width << ", height: " << height << std::endl;
-	// GTIFFree(gtif);
-	// XTIFFClose(tif);
-	// exit(0);
+	// GDALDatasetUniquePtr poDataset;
+	// GDALAllRegister();
+	// GDALDatasetH fd = GDALOpen(RESOURCE_DIR "/tifs/USGS_256_height.tif", GA_ReadOnly);
+	// poDataset = GDALDatasetUniquePtr(GDALDataset::FromHandle(fd));
+	// if (!poDataset) {
+	// 	std::cerr << "Failed to open GDAL dataset." << std::endl;
+	// 	return -1;
+	// }
+	// double        adfGeoTransform[6];
+	// printf( "Driver: %s/%s\n",
+	// 		poDataset->GetDriver()->GetDescription(),
+	// 		poDataset->GetDriver()->GetMetadataItem( GDAL_DMD_LONGNAME ) );
+	// printf( "Size is %dx%dx%d\n",
+	// 		poDataset->GetRasterXSize(), poDataset->GetRasterYSize(),
+	// 		poDataset->GetRasterCount() );
+	// if( poDataset->GetProjectionRef()  != NULL )
+	// 	printf( "Projection is `%s'\n", poDataset->GetProjectionRef() );
+	// if( poDataset->GetGeoTransform( adfGeoTransform ) == CE_None )
+	// {
+	// 	printf( "Origin = (%.6f,%.6f)\n",
+	// 			adfGeoTransform[0], adfGeoTransform[3] );
+	// 	printf( "Pixel Size = (%.6f,%.6f)\n",
+	// 			adfGeoTransform[1], adfGeoTransform[5] );
+	// }
+	// GDALRasterBand  *poBand;
+	// int             nBlockXSize, nBlockYSize;
+	// int             bGotMin, bGotMax;
+	// double          adfMinMax[2];
+	// poBand = poDataset->GetRasterBand( 1 );
+	// poBand->GetBlockSize( &nBlockXSize, &nBlockYSize );
+	// printf( "Block=%dx%d Type=%s, ColorInterp=%s\n",
+	// 		nBlockXSize, nBlockYSize,
+	// 		GDALGetDataTypeName(poBand->GetRasterDataType()),
+	// 		GDALGetColorInterpretationName(
+	// 			poBand->GetColorInterpretation()) );
+	// adfMinMax[0] = poBand->GetMinimum( &bGotMin );
+	// adfMinMax[1] = poBand->GetMaximum( &bGotMax );
+	// if( ! (bGotMin && bGotMax) )
+	// 	GDALComputeRasterMinMax((GDALRasterBandH)poBand, TRUE, adfMinMax);
+	// printf( "Min=%.3fd, Max=%.3f\n", adfMinMax[0], adfMinMax[1] );
+	// if( poBand->GetOverviewCount() > 0 )
+	// 	printf( "Band has %d overviews.\n", poBand->GetOverviewCount() );
+	// if( poBand->GetColorTable() != NULL )
+	// 	printf( "Band has a color table with %d entries.\n",
+	// 			poBand->GetColorTable()->GetColorEntryCount() );
+	// // double*pafScanline;
+	// int   nXSize = poBand->GetXSize();
+	// int   nYSize = poBand->GetYSize();
+	// double pixel_x_size = adfGeoTransform[1];
+	// double pixel_y_size = adfGeoTransform[5];
+	// std::cout << "nXSize: " << nXSize << ", nYSize: " << nYSize << std::endl;
+	// std::vector<double> data(nXSize * nYSize);
+	// // poBand->RasterIO(GF_Read, 0, 0, nXSize, 1, data.data(), nXSize, nYSize, GDT_Float64, 0, 0);
 	//
+	// CPLErr err = poBand->ReadRaster(data);
+	// if (err != CE_None) {
+	// 	std::cerr << "Failed to read raster data." << std::endl;
+	// 	std::cout << CPLGetLastErrorMsg() << std::endl;
+	// 	return -1;
+	// }
+	// for (double& d : data) {
+	// 	if (d < 0) d = 0; // ensure no negative values
+	//
+	// }
+	// std::cout << "radius in meters: " << pixel_x_size*nXSize/2 << std::endl;
+	// std::cout << "scale: " << poBand->GetScale() << std::endl;
+	// GDALClose(fd);
+	//
+	// GDALDatasetH soilfd = GDALOpen(RESOURCE_DIR "/tifs/USGS_256_soil.tif", GA_ReadOnly);
+	// GDALDatasetUniquePtr soilDataset= GDALDatasetUniquePtr(GDALDataset::FromHandle(soilfd));
+	// if (!soilDataset) {
+	// 	std::cerr << "Failed to open GDAL dataset." << std::endl;
+	// 	return -1;
+	// }
+	// int n_bands = soilDataset->GetBands().size();
+	// int soilNx, soilNy;
+	// GDALRasterBand* soilBand = soilDataset->GetRasterBand(1);
+	// soilNx = soilBand->GetXSize();
+	// soilNy = soilBand->GetYSize();
+	// std::cout << "Soil dataset size: " << soilNx << "x" << soilNy << std::endl;
+	// std::cout << "Soil dataset has " << n_bands << " bands." << std::endl;
+	// std::vector<double> soil_data(soilNx * soilNy);
+	// std::vector<ScalarField2> soil_fields = {siltf, sandf, clayf};
+	// for (int i = 0; i < 3; i++) {
+	// 	// GDALRasterBand* soilBand = soilDataset->GetRasterBand(i*2+1);
+	// 	// if (!soilBand) {
+	// 	// 	std::cerr << "Failed to get band " << (i + 1) << " from soil dataset." << std::endl;
+	// 	// 	return -1;
+	// 	// }
+	// 	// CPLErr soilErr = soilBand->ReadRaster(soil_data);
+	// 	// soil_fields[i] = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, soil_data);
+	// 	// if (soilErr != CE_None) {
+	// 	// 	std::cerr << "Failed to read raster data for band " << (i + 1) << "." << std::endl;
+	// 	// 	return -1;
+	// 	// }
+	// }
+	// albedoTexture = Texture2D(colors, nx, ny);
+	std::string outpath = std::string(RESOURCE_DIR) + "/test.png";
+
+	std::cout << siltf.GetData().size() << ", " << siltf.GetSizeX() << ", " << siltf.GetSizeY() << std::endl;
+
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 
 	hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0.0, 3280.0 - 1996.0);
+	// hf = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, data);
 
 	LoadTerrain();
 	load_soil();

@@ -25,6 +25,14 @@ struct SoilTexture {
 layout(binding = 6, std430) readonly  buffer InSoilTex { SoilTexture in_soiltex[]; };
 layout(binding = 7, std430) writeonly buffer OutSoilTex { SoilTexture out_soiltex[]; };
 
+struct SedimentClass {
+    float p_silt; // primary silt
+    float p_sand; // primary sand
+    float p_clay; // primary clay
+    float small_aggregate;
+    float large_aggregate;
+};
+
 // sediment texture
 layout(binding = 8, std430) readonly  buffer InSedTex { SoilTexture in_sedtex[]; };
 layout(binding = 9, std430) writeonly buffer OutSedTex { SoilTexture out_sedtex[]; };
@@ -297,10 +305,10 @@ vec3 calcDetachRatio(vec3 soiltex, out float[5] fracMassThisClass, out float[5] 
                               0.00f,
                               soiltex.b / (soiltex.r + soiltex.b));
 
-        float large_agg_clay = (soiltex.b - primary_clay - small_aggregate * small_agg_comp.b);// / large_agg;
-        float large_agg_silt = (soiltex.r - primary_silt - small_aggregate * small_agg_comp.r);// / large_agg;
+        float large_agg_clay = (soiltex.b - primary_clay - small_aggregate * small_agg_comp.b) / large_agg;
+        float large_agg_silt = (soiltex.r - primary_silt - small_aggregate * small_agg_comp.r) / large_agg;
         large_agg_comp = vec3(large_agg_silt,
-                            (soiltex.g - primary_sand),// /large_agg,
+                            (soiltex.g - primary_sand) /large_agg,
                             large_agg_clay);
 
         // large agg clay = 0.5 * %clay = 0.5 * (soiltex.b)
@@ -352,16 +360,22 @@ vec3 calcDetachRatio(vec3 soiltex, out float[5] fracMassThisClass, out float[5] 
     fracSandThisClass[LARGE_AGGREGATE] = large_agg_comp.g;
     fracClayThisClass[LARGE_AGGREGATE] = large_agg_comp.b;
 
-    vec3 detachRatio = vec3(primary_silt, primary_sand, primary_clay)/sum;
+    vec3 detachRatio = vec3(primary_silt, primary_sand, primary_clay);
 
-    detachRatio = AddRatio(detachRatio, small_aggregate/sum * small_agg_comp);
+//    detachRatio = AddRatio(detachRatio, small_aggregate * small_agg_comp);
+    detachRatio += small_aggregate * small_agg_comp;
 
-    detachRatio = AddRatio(detachRatio, large_agg/sum * large_agg_comp);
+    detachRatio = AddRatio(detachRatio, large_agg * large_agg_comp);
 
     return detachRatio;
 }
 
-vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sed_total) {
+
+float CalcFallVelocity(float specific_gravity, float diameter) {
+    return 0.0005f * specific_gravity * (diameter * diameter);
+}
+
+vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sedTotal) {
     vec3 soiltex = vec3(0.0f);
     float[5] fracMassThisClass;
     float[5] fracSiltThisClass;
@@ -383,16 +397,84 @@ vec3 SoilTexIncomingWeighted(ivec2 p, float streamPower, float sed_total) {
             float incoming_surf_area = dot(incoming_tex, vec3(4.0f, 0.05f, 20.0f));
             float enrichment_ratio = incoming_surf_area/cur_surf_area;
 //            vec3 incoming = ss * (Sed(q)/sed_total) * enrichment_ratio * detach;
-            vec3 incoming = (ss * Sed(q))/sed_total * enrichment_ratio * incoming_tex;
-            soiltex = AddRatio(soiltex, incoming);
+            vec3 incoming = (ss * Sed(q))/sedTotal * enrichment_ratio * incoming_tex;
+
+            float[5] fracMassThisClass;
+            float[5] fracSiltThisClass;
+            float[5] fracSandThisClass;
+            float[5] fracClayThisClass;
+
+            float[5] fracMassThisClassIncoming;
+            float[5] fracSiltThisClassIncoming;
+            float[5] fracSandThisClassIncoming;
+            float[5] fracClayThisClassIncoming;
+            incoming = calcDetachRatio(incoming_tex, fracMassThisClassIncoming, fracSiltThisClassIncoming, fracSandThisClassIncoming, fracClayThisClassIncoming);
+//            streamPower = streamPower - sedTotal;
+//            if (streamPower > 0.0f) {
+//                    fracMassThisClassIncoming[PRIMARY_SILT] = 4.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[PRIMARY_SILT] * sedTotal);
+//                    fracMassThisClassIncoming[PRIMARY_SAND] = 20.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_SAND] * sedTotal);
+//                    fracMassThisClassIncoming[PRIMARY_CLAY] = 0.05f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_CLAY] * sedTotal);
+//                    fracMassThisClassIncoming[SMALL_AGGREGATE]= (4.0f * fracMassThisClassIncoming[SMALL_AGGREGATE].r + 20.0f*fracSandThisClassIncoming[SMALL_AGGREGATE] + 0.05f*fracClayThisClassIncoming[SMALL_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[SMALL_AGGREGATE]* sedTotal);
+//                    fracMassThisClassIncoming[LARGE_AGGREGATE]= (4.0f*fracSiltThisClassIncoming[LARGE_AGGREGATE] + 20.0f*fracSandThisClassIncoming[LARGE_AGGREGATE] + 0.05f*fracClayThisClassIncoming[LARGE_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[LARGE_AGGREGATE]* sedTotal);
+//            }
+
+            float[5] specific_gravity_this_class = float[5](2.65f, 2.65f, 2.60f, 1.80f, 1.60f);
+            float[5] diameter_this_class = float[5](0.01f, 0.2f, 0.002f, 0.01f, 0.1f);
+
+//            for (int i = 0; i < 5; i++) {
+//                if (fracMassThisClassIncoming[i] < 0.0f) {
+//                    fracMassThisClassIncoming[i] *= CalcFallVelocity(specific_gravity_this_class[i], diameter_this_class[i]);
+//                }
+//            }
+
+            incoming = vec3(
+                fracMassThisClassIncoming[PRIMARY_SILT] * fracSiltThisClassIncoming[PRIMARY_SILT],
+                fracMassThisClassIncoming[PRIMARY_SAND] * fracSandThisClassIncoming[PRIMARY_SAND],
+                fracMassThisClassIncoming[PRIMARY_CLAY] * fracClayThisClassIncoming[PRIMARY_CLAY]
+            ) + vec3(
+                fracMassThisClassIncoming[SMALL_AGGREGATE] * fracSiltThisClassIncoming[SMALL_AGGREGATE],
+                fracMassThisClassIncoming[SMALL_AGGREGATE] * fracSandThisClassIncoming[SMALL_AGGREGATE],
+                fracMassThisClassIncoming[SMALL_AGGREGATE] * fracClayThisClassIncoming[SMALL_AGGREGATE]
+            ) + vec3(
+                fracMassThisClassIncoming[LARGE_AGGREGATE] * fracSiltThisClassIncoming[LARGE_AGGREGATE],
+                fracMassThisClassIncoming[LARGE_AGGREGATE] * fracSandThisClassIncoming[LARGE_AGGREGATE],
+                fracMassThisClassIncoming[LARGE_AGGREGATE] * fracClayThisClassIncoming[LARGE_AGGREGATE]
+            );
+            incoming /= incoming.r + incoming.g + incoming.b;
+
+//
+//            float[5] specific_gravity_this_class = float[5](2.65f, 2.65f, 2.60f, 1.80f, 1.60f);
+//            float[5] diameter_this_class = float[5](0.01f, 0.2f, 0.002f, 0.01f, 0.1f); // in mm
+//            float[5] fall_velocity_this_class = float[5](CalcFallVelocity(specific_gravity_this_class[PRIMARY_SILT],
+//                                                                          diameter_this_class[PRIMARY_SILT]),
+//            CalcFallVelocity(specific_gravity_this_class[PRIMARY_SAND], diameter_this_class[PRIMARY_SAND]),
+//            CalcFallVelocity(specific_gravity_this_class[PRIMARY_CLAY], diameter_this_class[PRIMARY_CLAY]),
+//            CalcFallVelocity(specific_gravity_this_class[SMALL_AGGREGATE], diameter_this_class[SMALL_AGGREGATE]),
+//            CalcFallVelocity(specific_gravity_this_class[LARGE_AGGREGATE], diameter_this_class[LARGE_AGGREGATE]));
+//            vec3 incoming_sedtex = calcDetachRatio(SedTex(q), fracMassThisClassIncoming, fracSiltThisClassIncoming, fracSandThisClassIncoming, fracClayThisClassIncoming);
+
+//            incoming_sedtex = vec3(fracMassThisClassIncoming[PRIMARY_SILT] * fall_velocity_this_class[PRIMARY_SILT], fracMassThisClassIncoming[PRIMARY_SAND] * fall_velocity_this_class[PRIMARY_SAND], fracMassThisClassIncoming[PRIMARY_CLAY] * fall_velocity_this_class[PRIMARY_CLAY]);
+//            incoming_sedtex.r += fracSiltThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE] * fall_velocity_this_class[SMALL_AGGREGATE];
+//            incoming_sedtex.g += fracSandThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE] * fall_velocity_this_class[SMALL_AGGREGATE];
+//            incoming_sedtex.b += fracClayThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE] * fall_velocity_this_class[SMALL_AGGREGATE];
+//
+//            incoming_sedtex.r += fracSiltThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE];
+//            incoming_sedtex.g += fracSandThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE];
+//            incoming_sedtex.b += fracClayThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE];
+//            vec3 incoming_sedtex = (ss * Sed(q))/sed_total * enrichment_ratio * incoming_tex;
+            soiltex = AddRatio(soiltex, incoming * ss);
 //            soiltex += ss * SoilTex(q);
         }
     }
     return soiltex;
 }
 
-float CalcFallVelocity(float specific_gravity, float diameter) {
-    return 0.0005f * specific_gravity * diameter * diameter;
+bool CheckPit(ivec2 p) {
+    for (int i = 0; i < 8; i++) {
+        float slope = Slope(p + next8[i], p);
+        if (slope > 0.0f) return false;
+    }
+    return true;
 }
 
 vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
@@ -417,27 +499,48 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
 
     float cur_surf_area = dot(SedTex(p), vec3(4.0f, 0.05f, 20.0f));
 //    float ss = ComputeIncomingFlowSteepest(p);
-    ivec2 q = p + GetFlowShallowest(p);
-    float ss = ComputeIncomingFlowShallowest(p);
+    ivec2 q = p + GetFlowSteepest(p);
+    float ss = ComputeIncomingFlowSteepest(p);
 //    float ss = Stream(q);
 //    vec3 detach = calcDetachRatio(SoilTex(q), ss, 0.0f);
 //    vec3 incoming_sedtex = calcDetachRatio(SoilTex(q), fracMassThisClassIncoming, fracSiltThisClassIncoming, fracSandThisClassIncoming, fracClayThisClassIncoming);
 //    vec3 incoming_sedtex = SoilTex(q);
 
+//    vec3 incoming_sedtex = SedTex(q);
+    vec3 incoming_sedtex = calcDetachRatio(SoilTex(q), fracMassThisClassIncoming, fracSiltThisClassIncoming, fracSandThisClassIncoming, fracClayThisClassIncoming);
+
+    incoming_sedtex = vec3(fracMassThisClassIncoming[PRIMARY_SILT]  * fall_velocity_this_class[PRIMARY_SILT],
+                            fracMassThisClassIncoming[PRIMARY_SAND] * fall_velocity_this_class[PRIMARY_SAND],
+                            fracMassThisClassIncoming[PRIMARY_CLAY]) * fall_velocity_this_class[PRIMARY_CLAY];
+    incoming_sedtex.r += fracSiltThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE]
+     * fall_velocity_this_class[SMALL_AGGREGATE];
+    incoming_sedtex.g += fracSandThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE]
+     * fall_velocity_this_class[SMALL_AGGREGATE];
+    incoming_sedtex.b += fracClayThisClassIncoming[SMALL_AGGREGATE] * fracMassThisClassIncoming[SMALL_AGGREGATE]
+     * fall_velocity_this_class[SMALL_AGGREGATE];
+
+    incoming_sedtex.r += fracSiltThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE]
+     * fall_velocity_this_class[LARGE_AGGREGATE];
+    incoming_sedtex.g += fracSandThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE]
+     * fall_velocity_this_class[LARGE_AGGREGATE];
+    incoming_sedtex.b += fracClayThisClassIncoming[LARGE_AGGREGATE] * fracMassThisClassIncoming[LARGE_AGGREGATE]
+     * fall_velocity_this_class[LARGE_AGGREGATE];
+
+    incoming_sedtex /= incoming_sedtex.r + incoming_sedtex.g + incoming_sedtex.b;
+
     //account for seperate transport capacities:
-//    if (streamPower > 0.0f) {
-//        fracMassThisClassIncoming[PRIMARY_SILT] = 4.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[PRIMARY_SILT] * sedTotal);
-//        fracMassThisClassIncoming[PRIMARY_SAND] = 20.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_SAND] * sedTotal);
-//        fracMassThisClassIncoming[PRIMARY_CLAY] = 0.05f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_CLAY] * sedTotal);
-//        fracMassThisClassIncoming[SMALL_AGGREGATE]= (4.0f*fracMassThisClassIncoming[SMALL_AGGREGATE].r + 20.0f*fracSandThisClassIncoming[SMALL_AGGREGATE] + 0.05f*fracClayThisClassIncoming[SMALL_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[SMALL_AGGREGATE]* sedTotal);
-//        fracMassThisClassIncoming[LARGE_AGGREGATE]= (4.0f*fracSiltThisClassIncoming[LARGE_AGGREGATE] + 20.0f*fracSandThisClassIncoming[LARGE_AGGREGATE] + 0.05f*fracClayThisClassIncoming[LARGE_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[LARGE_AGGREGATE]* sedTotal);
-//    }
+    if (streamPower > 0.0f && !CheckPit(p)) {
+        fracMassThisClassIncoming[PRIMARY_SILT] = 4.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[PRIMARY_SILT] * sedTotal);
+        fracMassThisClassIncoming[PRIMARY_SAND] = 20.0f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_SAND] * sedTotal);
+        fracMassThisClassIncoming[PRIMARY_CLAY] = 0.05f / 0.1 * streamPower * (cellDiag.x * cellDiag.y  * 0.1 - fracMassThisClassIncoming[PRIMARY_CLAY] * sedTotal);
+        fracMassThisClassIncoming[SMALL_AGGREGATE]= (4.0f*fracMassThisClassIncoming[SMALL_AGGREGATE].r + 20.0f*fracSandThisClassIncoming[SMALL_AGGREGATE] + 0.05f*fracClayThisClassIncoming[SMALL_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[SMALL_AGGREGATE]* sedTotal);
+        fracMassThisClassIncoming[LARGE_AGGREGATE]= (4.0f*fracSiltThisClassIncoming[LARGE_AGGREGATE] + 20.0f*fracSandThisClassIncoming[LARGE_AGGREGATE] + 0.05f*fracClayThisClassIncoming[LARGE_AGGREGATE]) / 3.0 * 0.1 * streamPower * (cellDiag.x * cellDiag.y * 0.1 - fracMassThisClassIncoming[LARGE_AGGREGATE]* sedTotal);
+    }
 
 //    incoming_sedtex = vec3(fracMassThisClassIncoming[PRIMARY_SILT] *
 //                            fall_velocity_this_class[PRIMARY_SILT],
 //                            fracMassThisClassIncoming[PRIMARY_SAND] * fall_velocity_this_class[PRIMARY_SAND],
 //                            fracMassThisClassIncoming[PRIMARY_CLAY] * fall_velocity_this_class[PRIMARY_CLAY]);
-//
 //
 //
 //    incoming_sedtex += vec3(fracMassThisClassIncoming[SMALL_AGGREGATE] *                        fracSiltThisClassIncoming[SMALL_AGGREGATE] * fall_velocity_this_class[SMALL_AGGREGATE],
@@ -447,12 +550,13 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
 //    incoming_sedtex += vec3(fracMassThisClassIncoming[LARGE_AGGREGATE] *                        fracSiltThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE],
 //                            fracMassThisClassIncoming[LARGE_AGGREGATE] * fracSandThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE],
 //                            fracMassThisClassIncoming[LARGE_AGGREGATE] * fracClayThisClassIncoming[LARGE_AGGREGATE] * fall_velocity_this_class[LARGE_AGGREGATE]);
-
-
+//
+//
 //    incoming_sedtex /= incoming_sedtex.r + incoming_sedtex.g + incoming_sedtex.b;
 
 //    vec3 current_sedtex = calcDetachRatio(SoilTex(p), fracMassThisClass, fracSiltThisClass, fracSandThisClass, fracClayThisClass);
-    vec3 incoming_sedtex = SedTex(q);
+
+
 //    vec3 current_sedtex = SoilTex(p);
 
     float incoming_surf_area = dot(incoming_sedtex, vec3(4.0f, 0.05f, 20.0f));
@@ -461,17 +565,11 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
 //    vec3 sedtex = AddRatio(current_sedtex, 1.0f/cellDiag.r * ss * incoming_sedtex * enrichment_ratio);
 //    vec3 sedtex = AddRatio(current_sedtex, ss * incoming_sedtex * streamPower * enrichment_ratio);
 //    soiltex = AddRatio(soiltex, incoming);
-    vec3 sedtex = incoming_sedtex;
+    vec3 sedtex = incoming_sedtex * streamPower * enrichment_ratio;
     return sedtex;
 }
 
-bool CheckPit(ivec2 p) {
-    for (int i = 0; i < 8; i++) {
-        float slope = Slope(p + next8[i], p);
-        if (slope > 0.0f) return false;
-    }
-    return true;
-}
+
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
@@ -512,13 +610,13 @@ void main() {
 	// Deposit
     // TODO: sediment classes should be seperated at this point
     float deposit = 0.0;
-    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
-//    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
+//    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
+    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
 	if (deposition_strength * sed > streamPower) {
 		deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
         soiltex = AddRatio(soiltex, deposit * sedtex);
-//        sedtex = AddRatio(sedtex, 1.0f/cellDiag.r * deposit * soiltex);
+        sedtex = AddRatio(sedtex,  -deposit * sedtex);
 	}
     float [5] fracMassThisClass;
     float [5] fracSiltThisClass;
@@ -528,7 +626,7 @@ void main() {
     float detach = streamPower * calc_k_factor(p);
     vec3 outsedtex = calcDetachRatio(soiltex, fracMassThisClass, fracSiltThisClass, fracSandThisClass, fracClayThisClass);
 //    vec3 outsed = AddRatio(1.0f/cellDiag.r * detach/height * (outsedtex), sedtex);
-    vec3 outsed = AddRatio(sedtex, outsedtex * detach );
+    vec3 outsed = AddRatio(sedtex, soiltex* detach );
 //        soiltex = AddRatio(soiltex, streamPower * sed * SoilTexIncomingWeighted(p));
 //
 //    soiltex = AddRatio(soiltex, 0.01 * deposit * SoilTexIncomingWeighted(p, streamPower, sed));
@@ -544,6 +642,8 @@ void main() {
     out_terrain[id] = height;
     out_stream[id] = stream;
     out_sed[id] = sed;
+//    vec3 dbg_c = calcDetachRatio(vec3(in_soiltex[id].silt, in_soiltex[id].sand, in_soiltex[id].clay), fracMassThisClass, fracSiltThisClass, fracSandThisClass, fracClayThisClass);
+//    out_soiltex[id] = SoilTexture(dbg_c.r, dbg_c.g, dbg_c.b);
     out_soiltex[id] = SoilTexture(soiltex.r, soiltex.g, soiltex.b);
     out_sedtex[id] = SoilTexture(outsed.r, outsed.g, outsed.b);
 //    out_sedtex[id] = SoilTexture(float( GetFlowShallowest(p).x), float(GetFlowShallowest(p).y), 0.0f);
