@@ -11,9 +11,10 @@
 #include "lodepng.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
-// #include "geotiffio.h"
-// #include "xtiffio.h"
 #include "gdal_priv.h"
+#include "geotiff.h"
+#include "imgui_tex_inspect.h"
+#include "render_texture.h"
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
@@ -49,6 +50,12 @@ static bool m_init_hydraulic_erosion = false;
 static GLuint m_terrain_buffer = 0;
 
 static InspectWidget inspectwidget;
+static GLuint inspect_shader = 0;
+static GLuint inspect_texture = 0;
+RenderTexture inspect_rt;
+static float minColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+static float maxColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
 
 void get_soil_texture(bool fetch = false);
 void load_soil();
@@ -440,38 +447,102 @@ static void GUI()
 				ResetCamera();
 		}
 
-		{
-			ImGui::Text("Erosion");
-			ImGui::Checkbox("Run E", &m_run_erosion);
+		// {
+		// 	ImGui::Text("Erosion");
+		// 	ImGui::Checkbox("Run E", &m_run_erosion);
+		// }
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// ImGui::Separator();
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// {
+		// 	ImGui::Text("Thermal");
+		// 	ImGui::Checkbox("Run T", &m_run_thermal);
+		// }
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// ImGui::Separator();
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// {
+		// 	ImGui::Text("Deposition");
+		// 	ImGui::Checkbox("Run D", &m_run_deposition);
+		// }
+		// ImGui::Separator();
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// {
+		// 	ImGui::Text("Soil Deposition");
+		// 	ImGui::Checkbox("Run SD", &m_run_soil_deposition);
+		// }
+		// ImGui::Separator();
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// {
+		// 	ImGui::Text("Hydraulic Erosion");
+		// 	ImGui::Checkbox("Run HE", &m_run_hydraulic_erosion);
+		// }
+		// ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// ImGui::Separator();
+		static int erosion_steps = 3000;
+		static int thermal_steps = 600;
+		static int deposition_steps = 2000;
+		static int soil_deposition_steps = 2000;
+		ImGui::SliderInt("Erosion steps", &erosion_steps, 1, 10000);
+		ImGui::SameLine();
+		if (ImGui::Button("Run Erosion")) {
+			if (!m_init_erosion) {
+				gpu_e.Init(hf, m_terrain_buffer);
+				m_init_erosion = true;
+				m_init_thermal = false;
+				m_init_deposition = false;
+				m_init_soil_deposition = false;
+				m_init_hydraulic_erosion = false;
+			}
+			gpu_e.Step(erosion_steps);
+			widget->SetTerrainBuffer(gpu_e.GetTerrainGLuint());
+			widget->UpdateInternal();
 		}
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		{
-			ImGui::Text("Thermal");
-			ImGui::Checkbox("Run T", &m_run_thermal);
+		ImGui::SliderInt("Thermal erosion steps", &thermal_steps, 1, 10000);
+		ImGui::SameLine();
+		if (ImGui::Button("Run Thermal")) {
+			if (!m_init_thermal) {
+				gpu_t.Init(hf, m_terrain_buffer);
+				m_init_erosion = false;
+				m_init_thermal = true;
+				m_init_deposition = false;
+				m_init_soil_deposition = false;
+				m_init_hydraulic_erosion = false;
+			}
+			gpu_t.Step(thermal_steps);
+			widget->SetTerrainBuffer(gpu_t.GetTerrainGLuint());
+			widget->UpdateInternal();
 		}
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		{
-			ImGui::Text("Deposition");
-			ImGui::Checkbox("Run D", &m_run_deposition);
+		ImGui::SliderInt("Deposition steps", &deposition_steps, 1, 10000);
+		ImGui::SameLine();
+		if (ImGui::Button("Run Deposition")) {
+			if (!m_init_deposition) {
+				gpu_d.Init(hf, m_terrain_buffer);
+				m_init_erosion = false;
+				m_init_thermal = false;
+				m_init_deposition = true;
+				m_init_soil_deposition = false;
+				m_init_hydraulic_erosion = false;
+			}
+			gpu_d.Step(deposition_steps);
+			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+			widget->UpdateInternal();
 		}
-		ImGui::Separator();
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		{
-			ImGui::Text("Soil Deposition");
-			ImGui::Checkbox("Run SD", &m_run_soil_deposition);
+		ImGui::SliderInt("Soil Deposition steps", &soil_deposition_steps, 1, 10000);
+		ImGui::SameLine();
+		if (ImGui::Button("Run Soil Deposition")) {
+			if (!m_init_soil_deposition) {
+				gpu_ds.Init(hf,  siltf, sandf, clayf, m_terrain_buffer);
+				m_init_erosion = false;
+				m_init_thermal = false;
+				m_init_deposition = false;
+				m_init_soil_deposition = true;
+				m_init_hydraulic_erosion = false;
+			}
+			gpu_ds.Step(soil_deposition_steps);
+			widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
+			widget->UpdateInternal();
 		}
-		ImGui::Separator();
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		{
-			ImGui::Text("Hydraulic Erosion");
-			ImGui::Checkbox("Run HE", &m_run_hydraulic_erosion);
-		}
-		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-		ImGui::Separator();
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		{
 			if (ImGui::Button("x2 upsampling")) {
@@ -571,6 +642,87 @@ static void GUI()
 			ImGui::Text(size_stat.c_str());
 		}
 	}
+	ImGui::End();
+	ImGui::Begin("Inspector", 0, 0);
+	static GLuint active_buffer = 0;
+	ScalarField2& inspect_field = hf;
+
+	static int current_selection = 0;
+
+	IInspect* inspect = nullptr;
+	if (m_init_soil_deposition) {
+		inspect = dynamic_cast<IInspect*>(static_cast<GPU_Deposition*>(&gpu_ds));
+	} else if (m_init_erosion) {
+		inspect = &gpu_e;
+	} else if (m_init_thermal) {
+		inspect = &gpu_t;
+	} else if (m_init_deposition) {
+		inspect = &gpu_d;
+	}
+
+	std::vector<BufferDescriptor> buffers = {
+		BufferDescriptor {
+			"height",
+			m_terrain_buffer,
+			hf.GetSizeX(), hf.GetSizeY(),
+			1
+		}
+	};
+	if (inspect) {
+		auto new_buffers = inspect->GetBuffers();
+		buffers.insert(buffers.end(), new_buffers.begin(), new_buffers.end());
+	}
+	{
+		int i = 0;
+		const char* item_names[10] = {};
+		for (const auto& buffer : buffers) {
+			item_names[i] = buffer.name;
+			if (buffer.id == active_buffer) {
+				current_selection = i;
+			}
+			i++;
+		}
+
+
+		ImGui::Combo("Inspect Buffer", &current_selection, item_names, i);
+		BufferDescriptor selection = buffers[current_selection];
+
+		ImGui::Text(selection.name);
+		ImGui::Text("number of bands: %d", selection.n_bands);
+		ImGui::Text("active buffer: %d", selection.id);
+		ImGui::Text("size: %d x %d", selection.nx, selection.ny);
+		ImGui::Text("range [%.2f, %.2f]", selection.zmin, selection.zmax);
+
+		ImGui::ColorEdit3("Min color", minColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha);
+		ImGui::SameLine();
+		ImGui::ColorEdit3("Max color", maxColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha);
+
+		set_render_texture_uniform3f(inspect_rt, "minColor", minColor[0], minColor[1], minColor[2]);
+		set_render_texture_uniform3f(inspect_rt, "maxColor", maxColor[0], maxColor[1], maxColor[2]);
+
+		set_render_texture_uniform2f(inspect_rt, "zRange", selection.zmin, selection.zmax);
+
+		active_buffer = selection.id;
+		render_to_texture(inspect_rt, selection);
+
+		ImGuiTexInspect::BeginInspectorPanel("Inspector", (ImTextureID) inspect_rt.texture, ImVec2(128,129),
+				ImGuiTexInspect::InspectorFlags_FillVertical |
+				ImGuiTexInspect::InspectorFlags_FillHorizontal |
+				ImGuiTexInspect::InspectorFlags_NoGrid);
+
+
+		ImGuiTexInspect::DrawAnnotations(ImGuiTexInspect::ValueText(ImGuiTexInspect::ValueText::Floats));
+		ImGuiTexInspect::EndInspectorPanel();
+	}
+	// } else {
+	// 	ImGui::Text("no buffers to inspect");
+	// }
+	std::stringstream cam_strings;
+	cam_strings << widget->GetCamera();
+	std::string cam_string = cam_strings.str();
+
+	ImGui::Text("%s", cam_string.c_str());
+
 	ImGui::End();
 
 	// File Dialog LOAD
@@ -740,6 +892,7 @@ void load_sat_png()
 	std::cout << "Loaded satellite texture with size: " << nx << "x" << ny << std::endl;
 }
 
+
 int main()
 {
 	// Init
@@ -748,103 +901,7 @@ int main()
 	window->SetUICallback(GUI);
 
 	load_sat_png();
-	// GDALDatasetUniquePtr poDataset;
-	// GDALAllRegister();
-	// GDALDatasetH fd = GDALOpen(RESOURCE_DIR "/tifs/USGS_256_height.tif", GA_ReadOnly);
-	// poDataset = GDALDatasetUniquePtr(GDALDataset::FromHandle(fd));
-	// if (!poDataset) {
-	// 	std::cerr << "Failed to open GDAL dataset." << std::endl;
-	// 	return -1;
-	// }
-	// double        adfGeoTransform[6];
-	// printf( "Driver: %s/%s\n",
-	// 		poDataset->GetDriver()->GetDescription(),
-	// 		poDataset->GetDriver()->GetMetadataItem( GDAL_DMD_LONGNAME ) );
-	// printf( "Size is %dx%dx%d\n",
-	// 		poDataset->GetRasterXSize(), poDataset->GetRasterYSize(),
-	// 		poDataset->GetRasterCount() );
-	// if( poDataset->GetProjectionRef()  != NULL )
-	// 	printf( "Projection is `%s'\n", poDataset->GetProjectionRef() );
-	// if( poDataset->GetGeoTransform( adfGeoTransform ) == CE_None )
-	// {
-	// 	printf( "Origin = (%.6f,%.6f)\n",
-	// 			adfGeoTransform[0], adfGeoTransform[3] );
-	// 	printf( "Pixel Size = (%.6f,%.6f)\n",
-	// 			adfGeoTransform[1], adfGeoTransform[5] );
-	// }
-	// GDALRasterBand  *poBand;
-	// int             nBlockXSize, nBlockYSize;
-	// int             bGotMin, bGotMax;
-	// double          adfMinMax[2];
-	// poBand = poDataset->GetRasterBand( 1 );
-	// poBand->GetBlockSize( &nBlockXSize, &nBlockYSize );
-	// printf( "Block=%dx%d Type=%s, ColorInterp=%s\n",
-	// 		nBlockXSize, nBlockYSize,
-	// 		GDALGetDataTypeName(poBand->GetRasterDataType()),
-	// 		GDALGetColorInterpretationName(
-	// 			poBand->GetColorInterpretation()) );
-	// adfMinMax[0] = poBand->GetMinimum( &bGotMin );
-	// adfMinMax[1] = poBand->GetMaximum( &bGotMax );
-	// if( ! (bGotMin && bGotMax) )
-	// 	GDALComputeRasterMinMax((GDALRasterBandH)poBand, TRUE, adfMinMax);
-	// printf( "Min=%.3fd, Max=%.3f\n", adfMinMax[0], adfMinMax[1] );
-	// if( poBand->GetOverviewCount() > 0 )
-	// 	printf( "Band has %d overviews.\n", poBand->GetOverviewCount() );
-	// if( poBand->GetColorTable() != NULL )
-	// 	printf( "Band has a color table with %d entries.\n",
-	// 			poBand->GetColorTable()->GetColorEntryCount() );
-	// // double*pafScanline;
-	// int   nXSize = poBand->GetXSize();
-	// int   nYSize = poBand->GetYSize();
-	// double pixel_x_size = adfGeoTransform[1];
-	// double pixel_y_size = adfGeoTransform[5];
-	// std::cout << "nXSize: " << nXSize << ", nYSize: " << nYSize << std::endl;
-	// std::vector<double> data(nXSize * nYSize);
-	// // poBand->RasterIO(GF_Read, 0, 0, nXSize, 1, data.data(), nXSize, nYSize, GDT_Float64, 0, 0);
-	//
-	// CPLErr err = poBand->ReadRaster(data);
-	// if (err != CE_None) {
-	// 	std::cerr << "Failed to read raster data." << std::endl;
-	// 	std::cout << CPLGetLastErrorMsg() << std::endl;
-	// 	return -1;
-	// }
-	// for (double& d : data) {
-	// 	if (d < 0) d = 0; // ensure no negative values
-	//
-	// }
-	// std::cout << "radius in meters: " << pixel_x_size*nXSize/2 << std::endl;
-	// std::cout << "scale: " << poBand->GetScale() << std::endl;
-	// GDALClose(fd);
-	//
-	// GDALDatasetH soilfd = GDALOpen(RESOURCE_DIR "/tifs/USGS_256_soil.tif", GA_ReadOnly);
-	// GDALDatasetUniquePtr soilDataset= GDALDatasetUniquePtr(GDALDataset::FromHandle(soilfd));
-	// if (!soilDataset) {
-	// 	std::cerr << "Failed to open GDAL dataset." << std::endl;
-	// 	return -1;
-	// }
-	// int n_bands = soilDataset->GetBands().size();
-	// int soilNx, soilNy;
-	// GDALRasterBand* soilBand = soilDataset->GetRasterBand(1);
-	// soilNx = soilBand->GetXSize();
-	// soilNy = soilBand->GetYSize();
-	// std::cout << "Soil dataset size: " << soilNx << "x" << soilNy << std::endl;
-	// std::cout << "Soil dataset has " << n_bands << " bands." << std::endl;
-	// std::vector<double> soil_data(soilNx * soilNy);
-	// std::vector<ScalarField2> soil_fields = {siltf, sandf, clayf};
-	// for (int i = 0; i < 3; i++) {
-	// 	// GDALRasterBand* soilBand = soilDataset->GetRasterBand(i*2+1);
-	// 	// if (!soilBand) {
-	// 	// 	std::cerr << "Failed to get band " << (i + 1) << " from soil dataset." << std::endl;
-	// 	// 	return -1;
-	// 	// }
-	// 	// CPLErr soilErr = soilBand->ReadRaster(soil_data);
-	// 	// soil_fields[i] = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, soil_data);
-	// 	// if (soilErr != CE_None) {
-	// 	// 	std::cerr << "Failed to read raster data for band " << (i + 1) << "." << std::endl;
-	// 	// 	return -1;
-	// 	// }
-	// }
-	// albedoTexture = Texture2D(colors, nx, ny);
+
 	std::string outpath = std::string(RESOURCE_DIR) + "/test.png";
 
 	std::cout << siltf.GetData().size() << ", " << siltf.GetSizeX() << ", " << siltf.GetSizeY() << std::endl;
@@ -852,13 +909,35 @@ int main()
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
 
-	hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0.0, 3280.0 - 1996.0);
-	// hf = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, data);
+	Raster raster;
+	read_geotiff(RESOURCE_DIR "/tifs/USGS_256_height.tif", raster);
 
+	std::cout << "Raster size: " << raster.nx << " x " << raster.ny << std::endl;
+
+	// hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0.0, 3280.0 - 1996.0);
+	// hf = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, data);
+	load_raster_to_field(raster, hf);
+
+	Raster soil_raster;
+	read_geotiff(RESOURCE_DIR "/tifs/USGS_256_soil.tif", soil_raster);
+	double prop_range[2] = {0.0,1.0};
+	map_raster_range(0, 100, 0, 1, soil_raster, 2);
+	map_raster_range(0,100,0,1,soil_raster,0);
+	map_raster_range(0,100,0,1,soil_raster,4);
+
+	load_raster_to_field(soil_raster, siltf, 2, &prop_range[0]);
+	load_raster_to_field(soil_raster, sandf, 0, &prop_range[0]);
+	load_raster_to_field(soil_raster, clayf, 4, &prop_range[0]);
+
+	// siltf = hf;
+	// sandf = hf;
+	// clayf = hf;
+	// depthf = hf;
 	LoadTerrain();
-	load_soil();
+	// load_soil();
 	window->SetWidget(widget);
 
+	inspect_rt = create_render_texture(hf.CellSizeX(), hf.CellSizeY(), RESOURCE_DIR "/shaders/inspect_shader.glsl");
 
 	ResetCamera();
 
@@ -879,6 +958,7 @@ int main()
 	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
 
 
+	// std::cout << widget->GetCamera() << std::endl;
 	// Main loop
 	while (!window->Exit()) {
 		if (m_run_erosion) {

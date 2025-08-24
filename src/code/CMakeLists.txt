@@ -52,11 +52,13 @@ target_sources(main
 target_include_directories(main PRIVATE include GDAL::GDAL_INCLUDE_DIRS)
 
 target_link_libraries(main
+    PUBLIC
+    imgui
+    imgui_tex_inspect
     PRIVATE
     glfw
     glm
     libglew_static
-    imgui
     GDAL::GDAL
 )
 

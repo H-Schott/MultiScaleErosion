@@ -4,6 +4,8 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include "imgui_tex_inspect.h"
+#include "tex_inspect_opengl.h"
 
 /*!
 \brief Class for handling a window with GLFW3 library.
@@ -72,6 +74,11 @@ Window::Window(const char* windowName, int w, int h)
 	ImGui_ImplGlfw_InitForOpenGL(windowPtr, true);
 	ImGui_ImplOpenGL3_Init("#version 330");
 
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiTexInspect::ImplOpenGL3_Init();
+	ImGuiTexInspect::Init();
+	ImGuiTexInspect::CreateContext();
+
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = [](uint8_t* data, int w, int h, char fmt) -> void* {
 		GLuint tex;
@@ -110,6 +117,7 @@ Window::Window(const char* windowName, int w, int h)
 Window::~Window()
 {
 	delete widget;
+	ImGuiTexInspect::ImplOpenGl3_Shutdown();
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();

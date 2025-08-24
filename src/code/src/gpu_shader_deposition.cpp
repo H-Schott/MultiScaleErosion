@@ -66,6 +66,11 @@ void GPU_Deposition::Init(const ScalarField2& hf, GLuint t_buffer) {
 	glUniform2f(glGetUniformLocation(simulationShader, "cellDiag"), float(cellDiag[0]), float(cellDiag[1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "b"), float(box[1][0]), float(box[1][1]));
+	double bedrockZmin, bedrockZmax;
+	hf.GetRange(bedrockZmin, bedrockZmax);
+
+	this->bedrockZmax = float(bedrockZmax);
+	this->bedrockZmin = float(bedrockZmin);
 
 	glUseProgram(0);
 }
@@ -205,6 +210,11 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 	glUniform2f(glGetUniformLocation(simulationShader, "cellDiag"), float(cellDiag[0]), float(cellDiag[1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "b"), float(box[1][0]), float(box[1][1]));
+	double bedrockZmin, bedrockZmax;
+	hf.GetRange(bedrockZmin, bedrockZmax);
+
+	this->bedrockZmax = float(bedrockZmax);
+	this->bedrockZmin = float(bedrockZmin);
 
 	glUseProgram(0);
 }

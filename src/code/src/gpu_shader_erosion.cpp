@@ -60,9 +60,12 @@ void GPU_Erosion::Init(const ScalarField2& hf, GLuint t_buffer) {
 	glUniform2f(glGetUniformLocation(simulationShader, "cellDiag"), float(cellDiag[0]), float(cellDiag[1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "a"), float(box[0][0]), float(box[0][1]));
 	glUniform2f(glGetUniformLocation(simulationShader, "b"), float(box[1][0]), float(box[1][1]));
+
+	hf.GetRange(bedrockzmin, bedrockzmax);
 	
 	glUseProgram(0);
 }
+
 
 void GPU_Erosion::Step(int n) {
 
@@ -112,4 +115,103 @@ void GPU_Erosion::GetDataStream(ScalarField2& sf) {
 	double s_min, s_max;
 	sf.GetRange(s_min, s_max);
 	std::cout << "Drainage area values go from " << s_min << " to " << s_max << "." << std::endl;
+}
+
+std::vector<BufferDescriptor> GPU_Erosion::GetBuffers()
+{
+	float zrange[2];
+	glUniform2f(glGetUniformLocation(simulationShader, "zRange"), zrange[0], zrange[1]);
+	return {
+		BufferDescriptor {
+			"bedrock",
+			bedrockBuffer,
+			nx,
+			ny,
+			1,
+			float(bedrockzmin),
+			float(bedrockzmax)
+		},
+		BufferDescriptor {
+			"stream power",
+			streamBuffer,
+			nx,
+			ny,
+			1,
+			float(bedrockzmin),
+			float(bedrockzmax)
+		},
+		BufferDescriptor {
+			"hardness",
+			hardnessBuffer,
+			nx,
+			ny,
+			1
+		}
+
+	};
+}
+
+std::vector<BufferDescriptor> GPU_Thermal::GetBuffers()
+{
+	return {};
+}
+
+std::vector<BufferDescriptor> GPU_Deposition::GetBuffers()
+{
+	return {
+		BufferDescriptor {
+			"bedrock",
+			bedrockBuffer,
+			nx,
+			ny,
+			1,
+			bedrockZmin,
+			bedrockZmax
+		},
+		BufferDescriptor {
+			"stream power",
+			streamBuffer,
+			nx,
+			ny,
+			1,
+			0.0f,
+			1.0f
+		},
+		BufferDescriptor {
+			"sediment",
+			sedimentBuffer,
+			nx,
+			ny,
+			1,
+			0.0f,
+			1.0f
+		}
+	};
+}
+
+std::vector<BufferDescriptor> GPU_SoilDeposition::GetBuffers()
+{
+	std::vector soilbuffers = {
+		BufferDescriptor {
+			"soil texture",
+			soiltexBuffer,
+			nx,
+			ny,
+			3,
+			0.0f,
+			1.0f,
+		},
+		BufferDescriptor {
+			"sediment texture",
+			sedtexBuffer,
+			nx,
+			ny,
+			3,
+			0.0f,
+			1.0f,
+		},
+	};
+	auto depbuffers = GPU_Deposition::GetBuffers();
+	soilbuffers.insert(soilbuffers.end(), depbuffers.begin(), depbuffers.end());
+	return soilbuffers;
 }
