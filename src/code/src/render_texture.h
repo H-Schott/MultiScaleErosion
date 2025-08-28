@@ -78,9 +78,19 @@ inline void render_to_texture(RenderTexture& rt, BufferDescriptor& buffer_desc) 
 	GLint viewport[4];
 	glGetIntegerv(GL_VIEWPORT, viewport);
 
+	if (rt.height != buffer_desc.ny || rt.width != buffer_desc.nx) {
+		glBindTexture(GL_TEXTURE_2D, rt.texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, buffer_desc.nx, buffer_desc.ny, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	}
+
 	// Bind framebuffer and set viewport
 	glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo);
-	glViewport(0, 0, rt.width, rt.height);
+	glViewport(0, 0, buffer_desc.nx, buffer_desc.ny);
 
 	// Clear and setup
 	glClear(GL_COLOR_BUFFER_BIT);

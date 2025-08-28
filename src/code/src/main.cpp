@@ -57,6 +57,9 @@ static float minColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 static float maxColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 
+
+Raster soil_raster;
+
 void get_soil_texture(bool fetch = false);
 void load_soil();
 /*!
@@ -393,16 +396,76 @@ static void GUI()
 		}
 
 		// Actions
+		// {
+		// 	ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Results");
+		// 	if (ImGui::Button("Result #1")) {
+		// 		hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
+		// 		LoadTerrain();
+		//
+		// 		PredefinedErosion();
+		//
+		// 		GetTerrain();
+		// 		widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+		// 		widget->initializeGL();
+		//
+		// 		ResetCamera();
+		// 	}
+		// 	ImGui::SameLine();
+		//
+		// 	if (ImGui::Button("Result #2")) {
+		// 		hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/mountains.png", 0., 3000.);
+		// 		LoadTerrain();
+		//
+		// 		PredefinedErosion();
+		//
+		// 		GetTerrain();
+		// 		widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+		// 		widget->initializeGL();
+		//
+		// 		ResetCamera();
+		// 	}
+		// 	ImGui::SameLine();
+		//
+		// 	if (ImGui::Button("Result #3")) {
+		// 		hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0., 3280.0 - 1996.0);
+		// 		load_soil();
+		// 		LoadTerrain();
+		//
+		// 		PredefinedSoilErosion();
+		//
+		// 		GetTerrain();
+		// 		widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
+		// 		widget->initializeGL();
+		// 		get_soil_texture(true);
+		//
+		// 		ResetCamera();
+		// 	}
+		// 	ImGui::Separator();
+		// 	ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		// }
 		{
 			ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Results");
-			if (ImGui::Button("Result #1")) {
-				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
+			if (ImGui::Button("Result #1 (Mesa Verde)")) {
+				Raster elv_raster;
+				read_geotiff(RESOURCE_DIR "/tifs/mesaverde.tif", elv_raster);
+				load_raster_to_field(elv_raster, hf, "elevation");
+
+				double prop_translate[4] = {0.0, 100.0, 0.0, 1.0};
+				read_geotiff(RESOURCE_DIR "/tifs/mesaverde.tif", soil_raster, prop_translate);
+
+				load_raster_to_field(soil_raster, siltf, "silttotal");
+				load_raster_to_field(soil_raster, sandf, "sandtotal");
+				load_raster_to_field(soil_raster, clayf, "claytotal");
+
+				gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+
 				LoadTerrain();
 
-				PredefinedErosion();
+				PredefinedSoilErosion();
 
 				GetTerrain();
-				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				get_soil_texture(true);
+				widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
 				widget->initializeGL();
 
 				ResetCamera();
@@ -416,6 +479,7 @@ static void GUI()
 				PredefinedErosion();
 
 				GetTerrain();
+
 				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
 				widget->initializeGL();
 
@@ -633,6 +697,15 @@ static void GUI()
 		}
 		// ImGui::Image((ImTextureID) widget->GetAlbedoID(), ImVec2(512, 512));
 		// ImGui::Image((ImTextureID) m_satellite_texture, ImVec2(512, 512));
+		if (ImGui::Button("Save terrain")) {
+			GetTerrain();
+			save_field_to_raster(hf, soil_raster, "elevation", RESOURCE_DIR "/out/terrain_out.tif");
+			get_soil_texture(true);
+			double prop_translate[4] = {0.0, 1.0, 0.0, 100.0};
+			save_field_to_raster(siltf, soil_raster, "silt", RESOURCE_DIR "/out/silt_out.tif", prop_translate);
+			save_field_to_raster(sandf, soil_raster, "sand", RESOURCE_DIR "/out/sand_out.tif", prop_translate);
+			save_field_to_raster(clayf, soil_raster, "clay", RESOURCE_DIR "/out/clay_out.tif", prop_translate);
+		}
 
 		// Simulation statistics
 		{
@@ -685,6 +758,7 @@ static void GUI()
 
 
 		ImGui::Combo("Inspect Buffer", &current_selection, item_names, i);
+		current_selection = std::min(current_selection, int(buffers.size() - 1));
 		BufferDescriptor selection = buffers[current_selection];
 
 		ImGui::Text(selection.name);
@@ -705,7 +779,7 @@ static void GUI()
 		active_buffer = selection.id;
 		render_to_texture(inspect_rt, selection);
 
-		ImGuiTexInspect::BeginInspectorPanel("Inspector", (ImTextureID) inspect_rt.texture, ImVec2(128,129),
+		ImGuiTexInspect::BeginInspectorPanel("Inspector", (ImTextureID) inspect_rt.texture, ImVec2(selection.nx,selection.ny),
 				ImGuiTexInspect::InspectorFlags_FillVertical |
 				ImGuiTexInspect::InspectorFlags_FillHorizontal |
 				ImGuiTexInspect::InspectorFlags_NoGrid);
@@ -910,24 +984,27 @@ int main()
 	glGenBuffers(1, &m_terrain_buffer);
 
 	Raster raster;
-	read_geotiff(RESOURCE_DIR "/tifs/USGS_256_height.tif", raster);
+	// double height_translate[4] = {0.0, 100.0, 0.0, 1.0};
+	read_geotiff(RESOURCE_DIR "/tifs/mesaverde.tif", raster);
 
 	std::cout << "Raster size: " << raster.nx << " x " << raster.ny << std::endl;
 
 	// hf = ScalarField2(Box2(Vector2::Null, 64 * 100), "heightfields/dem_test.png", 0.0, 3280.0 - 1996.0);
 	// hf = ScalarField2(Box2(Vector2::Null, double(nXSize)*pixel_x_size/2), nXSize, nYSize, data);
-	load_raster_to_field(raster, hf);
+	load_raster_to_field(raster, hf, "elevation");
+	std::cout << "post load hf size: " << hf.GetSizeX() << ", " << hf.GetSizeY() << std::endl;
+	// hf.SetRange(0,1000);
 
-	Raster soil_raster;
-	read_geotiff(RESOURCE_DIR "/tifs/USGS_256_soil.tif", soil_raster);
+	double prop_translate[4] = {0.0, 100.0, 0.0, 1.0};
+	read_geotiff(RESOURCE_DIR "/tifs/mesaverde.tif", soil_raster, prop_translate);
 	double prop_range[2] = {0.0,1.0};
-	map_raster_range(0, 100, 0, 1, soil_raster, 2);
-	map_raster_range(0,100,0,1,soil_raster,0);
-	map_raster_range(0,100,0,1,soil_raster,4);
+	// map_raster_range(0, 100, 0, 1, soil_raster, 2);
+	// map_raster_range(0,100,0,1,soil_raster,0);
+	// map_raster_range(0,100,0,1,soil_raster,4);
 
-	load_raster_to_field(soil_raster, siltf, 2, &prop_range[0]);
-	load_raster_to_field(soil_raster, sandf, 0, &prop_range[0]);
-	load_raster_to_field(soil_raster, clayf, 4, &prop_range[0]);
+	load_raster_to_field(soil_raster, siltf, "silttotal");
+	load_raster_to_field(soil_raster, sandf, "sandtotal");
+	load_raster_to_field(soil_raster, clayf, "claytotal");
 
 	// siltf = hf;
 	// sandf = hf;
@@ -953,7 +1030,7 @@ int main()
 
 
 	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
-	gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+	// gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 	// gpu_ds.Step(2);
 	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
 

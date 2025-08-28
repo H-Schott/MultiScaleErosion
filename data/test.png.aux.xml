@@ -1,0 +1,16 @@
+<PAMDataset>
+  <SRS dataAxisToSRSAxisMapping="1,2">PROJCS["unknown",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101004]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["latitude_of_center",23],PARAMETER["longitude_of_center",-96],PARAMETER["standard_parallel_1",29.5],PARAMETER["standard_parallel_2",45.5],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]</SRS>
+  <GeoTransform> -1.1065000000000000e+06,  0.0000000000000000e+00,  0.0000000000000000e+00,  1.6409000000000000e+06,  0.0000000000000000e+00, -0.0000000000000000e+00</GeoTransform>
+  <Metadata>
+    <MDI key="AREA_OR_POINT">Area</MDI>
+    <MDI key="TIFFTAG_SOFTWARE">GDAL 3.9.2e (3090211) (4.6.0;1710;3.0.3;2.1.6;;0x10400;5.4.7;4.0.0;), PROJ 9.4.1 (EPSG.VERSION=v11.006;EPSG.DATE=2024-03-13;ESRI.VERSION=ArcGIS Pro 3.3;ESRI.DATE=2024-05-07;PROJ_DATA.VERSION=1.18;)</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>elevation</Description>
+    <NoDataValue le_hex_equiv="000000E0FFFFEFC7">-3.40282346638529E+38</NoDataValue>
+    <Metadata>
+      <MDI key="BandName">Band_1</MDI>
+      <MDI key="RepresentationType">ATHEMATIC</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

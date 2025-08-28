@@ -610,8 +610,8 @@ void main() {
 	// Deposit
     // TODO: sediment classes should be seperated at this point
     float deposit = 0.0;
-//    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
-    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
+    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
+//    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
 	if (deposition_strength * sed > streamPower) {
 		deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
