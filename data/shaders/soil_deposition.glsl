@@ -37,7 +37,8 @@ struct SedimentClass {
 layout(binding = 8, std430) readonly  buffer InSedTex { SoilTexture in_sedtex[]; };
 layout(binding = 9, std430) writeonly buffer OutSedTex { SoilTexture out_sedtex[]; };
 
-
+layout(binding = 10, std430) readonly  buffer InDepth { float in_depth[]; };
+layout(binding = 11, std430) writeonly buffer OutDepth { float out_depth[]; };
 //
 //// silt
 //layout(binding = 6, std430) readonly  buffer InSilt      { float in_silt[]; };
@@ -108,6 +109,12 @@ float Sed(ivec2 p) {
     if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.0f;
     int index_p = ToIndex1D(p.x, p.y);
     return in_sed[index_p];
+}
+
+float Depth(ivec2 p) {
+    if (p.x < 0 || p.x >= nx || p.y < 0 || p.y >= ny) return 0.0f;
+    int index_p = ToIndex1D(p.x, p.y);
+    return in_depth[index_p];
 }
 
 vec3 SoilTex(ivec2 p) {
@@ -228,6 +235,8 @@ float SedIncomingWeighted(ivec2 p) {
         float ss = sn[(i + 4) % 8];
         if (ss > 0.0f) {
             float k = calc_k_factor(q);
+            float sed_v = ss * Sed(q);
+            sed_v = min(sed_v, sed_v * (in_terrain[ToIndex1D(q.x,q.y)]/(Depth(q)*200.0+0.01)));
             sed += ss * Sed(q);
         }
     }
@@ -500,7 +509,7 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
     float cur_surf_area = dot(SedTex(p), vec3(4.0f, 0.05f, 20.0f));
 //    float ss = ComputeIncomingFlowSteepest(p);
     ivec2 q = p + GetFlowSteepest(p);
-    float ss = ComputeIncomingFlowSteepest(p);
+    float ss = ComputeIncomingFlowShallowest(p);
 //    float ss = Stream(q);
 //    vec3 detach = calcDetachRatio(SoilTex(q), ss, 0.0f);
 //    vec3 incoming_sedtex = calcDetachRatio(SoilTex(q), fracMassThisClassIncoming, fracSiltThisClassIncoming, fracSandThisClassIncoming, fracClayThisClassIncoming);
@@ -569,7 +578,9 @@ vec3 SoilTexIncomingSteepest(ivec2 p, float sedTotal, float streamPower) {
     return sedtex;
 }
 
-
+float clay_size = 0.001105; //mm
+float silt_size = 0.02635; //mm
+float sand_size = 1.05; //mm
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
@@ -587,6 +598,8 @@ void main() {
     float height = in_terrain[id];
     float stream = in_stream[id];
     float sed = in_sed[id];
+
+    float depth = in_depth[id];
 
     float initial_sed = sed;
     vec3 soiltex = vec3(in_soiltex[id].silt, in_soiltex[id].sand, in_soiltex[id].clay);
@@ -610,13 +623,14 @@ void main() {
 	// Deposit
     // TODO: sediment classes should be seperated at this point
     float deposit = 0.0;
-    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
-//    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
+//    sedtex = SoilTexIncomingSteepest(p, sed, streamPower);
+    sedtex = SoilTexIncomingWeighted(p, streamPower, sed);
 	if (deposition_strength * sed > streamPower) {
 		deposit = min(sed, (deposition_strength * sed - streamPower) * 0.1);
 		height += deposit;
-        soiltex = AddRatio(soiltex, deposit * sedtex);
-        sedtex = AddRatio(sedtex,  -deposit * sedtex);
+        depth += deposit;
+        soiltex = AddRatio(soiltex, deposit/depth * sedtex);
+        sedtex = AddRatio(sedtex,  -deposit/depth * sedtex);
 	}
     float [5] fracMassThisClass;
     float [5] fracSiltThisClass;
@@ -624,8 +638,14 @@ void main() {
     float [5] fracClayThisClass;
 
     float detach = streamPower * calc_k_factor(p);
+
+
+//    detach = min(detach, detach * (height / (depth * 200.0 + 0.01)));
     vec3 outsedtex = calcDetachRatio(soiltex, fracMassThisClass, fracSiltThisClass, fracSandThisClass, fracClayThisClass);
 //    vec3 outsed = AddRatio(1.0f/cellDiag.r * detach/height * (outsedtex), sedtex);
+
+
+
     vec3 outsed = AddRatio(sedtex, soiltex* detach );
 //        soiltex = AddRatio(soiltex, streamPower * sed * SoilTexIncomingWeighted(p));
 //
@@ -634,7 +654,15 @@ void main() {
     sed = max(0., sed - deposit);
 
     // Detach
+    if (depth > 0f) {
+        detach = min(detach, depth);
+    } else {
+        // eroding bedrock: equal parts of silt, sand, clay
+        vec3 soiltex = vec3(in_soiltex[id].silt, in_soiltex[id].sand, in_soiltex[id].clay);
+//        vec3 sedtex = vec3(in_sedtex[id].silt, in_sedtex[id].sand, in_sedtex[id].clay);
+    };
     sed += detach;
+    depth = max(0.0, depth - detach);
 //    vec3 detachedSedRation = calcDetachRatio(sedtex,
 
 
@@ -646,6 +674,7 @@ void main() {
 //    out_soiltex[id] = SoilTexture(dbg_c.r, dbg_c.g, dbg_c.b);
     out_soiltex[id] = SoilTexture(soiltex.r, soiltex.g, soiltex.b);
     out_sedtex[id] = SoilTexture(outsed.r, outsed.g, outsed.b);
+    out_depth[id] = in_depth[id];
 //    out_sedtex[id] = SoilTexture(float( GetFlowShallowest(p).x), float(GetFlowShallowest(p).y), 0.0f);
 }
 

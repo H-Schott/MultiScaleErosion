@@ -134,9 +134,11 @@ public:
 	GLuint tempSoiltexBuffer = 0;
 	GLuint sedtexBuffer = 0;
 	GLuint tempSedtexBuffer = 0;
+	GLuint depthBuffer = 0;
+	GLuint tempDepthBuffer = 0;
 	~GPU_SoilDeposition();
 
-	void Init(const ScalarField2 &hf, const ScalarField2 &siltf, const ScalarField2 &sandf, const ScalarField2 &clayf, GLuint
+	void Init(const ScalarField2 &hf, const ScalarField2 &siltf, const ScalarField2 &sandf, const ScalarField2 &clayf, const ScalarField2& depthf, GLuint
 	          t_buffer);
 
 	void Step(int n);

@@ -126,7 +126,7 @@ GPU_SoilDeposition::~GPU_SoilDeposition()
 	release_program(simulationShader);
 }
 
-void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf, const ScalarField2& sandf, const ScalarField2& clayf, GLuint t_buffer) {
+void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf, const ScalarField2& sandf, const ScalarField2& clayf, const ScalarField2& depthf, GLuint t_buffer) {
 	// Prepare data for first step
 	std::cout << "Init Soil Deposition" << std::endl;
 	nx = hf.GetSizeX();
@@ -139,6 +139,8 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 	tmpSilt.resize(totalBufferSize);
 	tmpSand.resize(totalBufferSize);
 	tmpClay.resize(totalBufferSize);
+	std::vector<float> tmpDepth;
+	tmpDepth.resize(totalBufferSize);
 
 	std::vector<float> tmpSoilTex(totalBufferSize*3, 0.);
 	for (int i = 0; i < totalBufferSize; i++) {
@@ -152,6 +154,7 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 		tmpSilt[i] = float(siltf.at(i));
 		tmpSand[i] = float(sandf.at(i));
 		tmpClay[i] = float(clayf.at(i));
+		tmpDepth[i] = float(depthf.at(i));
 	}
 
 	std::vector<float> tmpZeros(totalBufferSize, 0.);
@@ -200,6 +203,15 @@ void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf,
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempSedtexBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * 3 * totalBufferSize, &tmpSoilTex.front(), GL_STREAM_READ);
 
+	if (depthBuffer == 0) glGenBuffers(1, &depthBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, depthBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpDepth.front(), GL_STREAM_READ);
+
+	if (tempDepthBuffer == 0) glGenBuffers(1, &tempDepthBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tempDepthBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * totalBufferSize, &tmpZeros.front(), GL_STREAM_READ);
+
+
 	// Uniforms - just once
 	glUseProgram(simulationShader);
 
@@ -234,6 +246,8 @@ void GPU_SoilDeposition::Step(int n) {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, tempSoiltexBuffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, sedtexBuffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, tempSedtexBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, depthBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, tempDepthBuffer);
 
 		glDispatchCompute(dispatchSize, dispatchSize, 1);
 		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -244,6 +258,7 @@ void GPU_SoilDeposition::Step(int n) {
 		std::swap(sedimentBuffer, tempSedimentBuffer);
 		std::swap(soiltexBuffer, tempSoiltexBuffer);
 		std::swap(sedtexBuffer, tempSedtexBuffer);
+		std::swap(depthBuffer, tempDepthBuffer);
 
 	}
 

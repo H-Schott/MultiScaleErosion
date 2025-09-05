@@ -24,6 +24,7 @@ static ScalarField2 sandf;
 static ScalarField2 clayf;
 static ScalarField2 depthf;
 static ScalarField2 gpu_drainage;
+
 static GPU_Erosion gpu_e;
 static GPU_Thermal gpu_t;
 static GPU_Deposition gpu_d;
@@ -238,12 +239,12 @@ static void PredefinedErosion() {
 static void PredefinedSoilErosion() {
 	// 256
 	gpu_e.Init(hf, m_terrain_buffer);
-	gpu_e.Step(3000);
+	gpu_e.Step(500);
 
 	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
 	gpu_t.Step(600);
 
-	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf, depthf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Step(2000);
 
 	// 512
@@ -253,6 +254,7 @@ static void PredefinedSoilErosion() {
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
 	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
 	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
 	LoadTerrain();
 
 	gpu_e.Init(hf, m_terrain_buffer);
@@ -261,7 +263,7 @@ static void PredefinedSoilErosion() {
 	gpu_t.Init(hf, gpu_e.GetTerrainGLuint());
 	gpu_t.Step(1000);
 
-	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf, depthf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Step(1000);
 
 	// 1024
@@ -271,6 +273,7 @@ static void PredefinedSoilErosion() {
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
 	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
 	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
 	LoadTerrain();
 
 	gpu_e.Init(hf, m_terrain_buffer);
@@ -280,7 +283,7 @@ static void PredefinedSoilErosion() {
 	gpu_t.Step(2000);
 
 	// gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Step(200);
 
 	// 2048
@@ -290,6 +293,7 @@ static void PredefinedSoilErosion() {
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
 	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
 	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
 	LoadTerrain();
 
 	gpu_e.Init(hf, m_terrain_buffer);
@@ -299,7 +303,7 @@ static void PredefinedSoilErosion() {
 	gpu_t.Step(6000);
 
 	// gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
-	gpu_ds.Init(hf, siltf, sandf, clayf, gpu_t.GetTerrainGLuint());
+	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Step(150);
 }
 
@@ -456,8 +460,17 @@ static void GUI()
 				load_raster_to_field(soil_raster, siltf, "silttotal");
 				load_raster_to_field(soil_raster, sandf, "sandtotal");
 				load_raster_to_field(soil_raster, clayf, "claytotal");
+				load_raster_to_field(elv_raster, depthf, "soildepth");
 
-				gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+				// for (int i = )
+				load_raster_to_field(elv_raster, depthf, "soildepth");
+
+				for (int i = 0; i < depthf.GetSizeX()*depthf.GetSizeY(); i++) {
+					depthf[i] /=200.0;
+				}
+
+
+				gpu_ds.Init(hf, siltf, sandf, clayf, depthf,m_terrain_buffer);
 
 				LoadTerrain();
 
@@ -596,7 +609,7 @@ static void GUI()
 		ImGui::SameLine();
 		if (ImGui::Button("Run Soil Deposition")) {
 			if (!m_init_soil_deposition) {
-				gpu_ds.Init(hf,  siltf, sandf, clayf, m_terrain_buffer);
+				gpu_ds.Init(hf,  siltf, sandf, clayf,depthf, m_terrain_buffer);
 				m_init_erosion = false;
 				m_init_thermal = false;
 				m_init_deposition = false;
@@ -617,11 +630,12 @@ static void GUI()
 				siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
 				sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
 				clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+				depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
 				LoadTerrain();
 
 				widget->initializeGL();
-				gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
-				gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+				gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
+				// gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 				get_soil_texture(true);
 				widget->SetAlbedo(albedoTexture);
 
@@ -639,7 +653,7 @@ static void GUI()
 			}
 			if (ImGui::Button("Run 1 step Soil Deposition")) {
 				if (!m_init_soil_deposition) {
-					gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+					gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
 					m_init_soil_deposition = true;
 					m_init_erosion = false;
 					m_init_thermal = false;
@@ -1005,6 +1019,11 @@ int main()
 	load_raster_to_field(soil_raster, siltf, "silttotal");
 	load_raster_to_field(soil_raster, sandf, "sandtotal");
 	load_raster_to_field(soil_raster, clayf, "claytotal");
+	load_raster_to_field(raster, depthf, "soildepth");
+
+	for (int i = 0; i < depthf.GetSizeX()*depthf.GetSizeY(); i++) {
+		depthf[i] /=200.0;
+	}
 
 	// siltf = hf;
 	// sandf = hf;
@@ -1029,7 +1048,7 @@ int main()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, siltf.GetSizeX(), siltf.GetSizeY(), 0, GL_RGBA, GL_UNSIGNED_BYTE, albedoTexture.Data());
 
 
-	gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
 	// gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
 	// gpu_ds.Step(2);
 	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
@@ -1077,7 +1096,7 @@ int main()
 			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
 			widget->UpdateInternal();
 		} else if (m_run_soil_deposition) {
-			if (!m_init_soil_deposition) gpu_ds.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+			if (!m_init_soil_deposition) gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
 			m_init_erosion = false;
 			m_init_thermal = false;
 			m_init_deposition = false;

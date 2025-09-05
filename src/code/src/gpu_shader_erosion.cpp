@@ -210,6 +210,15 @@ std::vector<BufferDescriptor> GPU_SoilDeposition::GetBuffers()
 			0.0f,
 			1.0f,
 		},
+		BufferDescriptor {
+			"soildepth",
+			depthBuffer,
+			nx,
+			ny,
+			1,
+			0.0f,
+			1.0f
+		}
 	};
 	auto depbuffers = GPU_Deposition::GetBuffers();
 	soilbuffers.insert(soilbuffers.end(), depbuffers.begin(), depbuffers.end());
