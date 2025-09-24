@@ -275,7 +275,11 @@ static void GUI()
 	if (ifd::FileDialog::Instance().IsDone("LoadDEM_Dialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {
 			std::string res = ifd::FileDialog::Instance().GetResult().u8string();
-			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 1400., true);
+			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 2300., true);
+			/*
+			double max_size = double(std::max(hf.GetSizeX(), hf.GetSizeY()));
+			hf = hf.SetResolution(int(256 * hf.GetSizeX() / max_size), int(256 * hf.GetSizeY() / max_size));
+			*/
 			LoadTerrain();
 			widget->initializeGL();
 			ResetCamera();

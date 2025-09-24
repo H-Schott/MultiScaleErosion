@@ -91,6 +91,11 @@ ScalarField2::ScalarField2(const Box2& box, const char* filename, double minV, d
     }
     stbi_image_free(rawData);
 
+    Box2 bb = box;
+    bb.Scale(Vector2(1., ny / double(nx)));
+    a = bb[0];
+    b = bb[1];
+
     celldiagonal = Vector2((b[0] - a[0]) / (nx - 1), (b[1] - a[1]) / (ny - 1));
     inversecelldiagonal = celldiagonal.Inverse();
 }

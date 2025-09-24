@@ -37,6 +37,14 @@ Box2 Box2::Extended(const double& r) const
   return Box2(a - Vector2(r), b + Vector2(r));
 }
 
+void Box2::Scale(const Vector2& s) {
+    Vector2 c = Center();
+    Vector2 size = Size();
+    size *= s;
+    a = c - size / 2.;
+    b = c + size / 2.;
+}
+
 /*!
 \brief Extend the limits of the box given a point.
 
