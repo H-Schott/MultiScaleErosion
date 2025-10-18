@@ -48,8 +48,9 @@ target_sources(main
     src/write_16_png.cpp
 )
 
+find_package(GDAL CONFIG REQUIRED)
 
-target_include_directories(main PRIVATE include GDAL::GDAL_INCLUDE_DIRS)
+target_include_directories(main PRIVATE include)
 
 target_link_libraries(main
     PUBLIC

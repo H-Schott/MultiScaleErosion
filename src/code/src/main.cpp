@@ -236,7 +236,32 @@ static void PredefinedErosion() {
 	gpu_d.Step(150);
 }
 
-static void PredefinedSoilErosion() {
+#define outfile(s,n) (std::string(RESOURCE_DIR) + "/out/" + prefix + "_" + s + "_" + std::to_string(n) + ".tif").c_str()
+
+static void save(const std::string& prefix)
+{
+	GetTerrain();
+	get_soil_texture(true);
+	int nx = hf.GetSizeX();
+	std::string filename = outfile("elev", nx);
+	std::cout << "Saving elevation to " << filename << std::endl;
+	save_field_to_raster(hf, soil_raster, "elevation", outfile("elev", nx));
+	get_soil_texture(true);
+	double prop_translate[4] = {0.0, 1.0, 0.0, 100.0};
+	save_field_to_raster(siltf, soil_raster, "silt", outfile("silt", nx), prop_translate);
+	save_field_to_raster(sandf, soil_raster, "sand", outfile("sand", nx), prop_translate);
+	save_field_to_raster(clayf, soil_raster, "clay", outfile("clay",nx), prop_translate);
+}
+
+static void PredefinedSoilErosion(std::string prefix = "out", bool save_results = false) {
+	GetTerrain();
+	get_soil_texture(true);
+	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
+	LoadTerrain();
 	// 256
 	gpu_e.Init(hf, m_terrain_buffer);
 	gpu_e.Step(500);
@@ -249,6 +274,9 @@ static void PredefinedSoilErosion() {
 
 	// 512
 	GetTerrain();
+	if (save_results)
+		save(prefix);
+
 	get_soil_texture(true);
 	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
@@ -268,6 +296,8 @@ static void PredefinedSoilErosion() {
 
 	// 1024
 	GetTerrain();
+	if (save_results)
+		save(prefix);
 	get_soil_texture(true);
 	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
@@ -288,6 +318,8 @@ static void PredefinedSoilErosion() {
 
 	// 2048
 	GetTerrain();
+	if (save_results)
+		save(prefix);
 	get_soil_texture(true);
 	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);;
 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
@@ -305,6 +337,9 @@ static void PredefinedSoilErosion() {
 	// gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, gpu_t.GetTerrainGLuint());
 	gpu_ds.Step(150);
+	GetTerrain();
+	if (save_results)
+		save(prefix);
 }
 
 static void ShowSoilTooltip()
@@ -1047,11 +1082,101 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, siltf.GetSizeX(), siltf.GetSizeY(), 0, GL_RGBA, GL_UNSIGNED_BYTE, albedoTexture.Data());
 
+	// gpu_e.Init(hf, m_terrain_buffer);
+	// gpu_e.Step(100);
+	//
+	// for (int k = 0; k < 5; k++) {
+	// 	int n_samples = 10;
+	// 	auto total_duration = std::chrono::duration<double>::zero();
+	//
+	// 	for (int i = 0; i < n_samples; i++) {
+	// 		gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
+	// 		auto start = std::chrono::high_resolution_clock::now();
+	// 		gpu_ds.Step(100);
+	// 		auto end = std::chrono::high_resolution_clock::now();
+	//
+	// 		std::chrono::duration<double> elapsed = end - start;
+	// 		total_duration += elapsed;
+	// 	}
+	// 	auto average_duration = total_duration / double(n_samples);
+	// 	std::cout << "Soil deposition 100 steps time at " << hf.CellSizeX() << ": " << average_duration.count() * 1000.0 << " ms" << std::endl;
+	// 	// GetTerrain();
+	// 	widget->SetTerrainBuffer(gpu_ds.GetTerrainGLuint());
+	// 	widget->UpdateInternal();
+	//
+	// 	LoadTerrain();
+	// 	gpu_d.Init(hf, m_terrain_buffer);
+	// 	total_duration = std::chrono::duration<double>::zero();
+	//
+	// 	for (int i = 0; i < n_samples; i++) {
+	// 		gpu_d.Init(hf,  m_terrain_buffer);
+	// 		auto start = std::chrono::high_resolution_clock::now();
+	// 		gpu_d.Step(100);
+	// 		auto end = std::chrono::high_resolution_clock::now();
+	//
+	// 		std::chrono::duration<double> elapsed = end - start;
+	// 		total_duration += elapsed;
+	// 	}
+	// 	average_duration = total_duration / double(n_samples);
+	// 	std::cout << "Deposition 100 steps time at " << hf.CellSizeX() << ": " << average_duration.count() * 1000.0 << " ms" << std::endl;
+	//
+	//
+	// 	GetTerrain();
+	// 	get_soil_texture(true);
+	// 	hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+	// 	siltf = siltf.SetResolution(siltf.GetSizeX() * 2, siltf.GetSizeY() * 2, true);
+	// 	sandf = sandf.SetResolution(sandf.GetSizeX() * 2, sandf.GetSizeY() * 2, true);
+	// 	clayf = clayf.SetResolution(clayf.GetSizeX() * 2, clayf.GetSizeY() * 2, true);
+	// 	depthf = depthf.SetResolution(depthf.GetSizeX() * 2, depthf.GetSizeY() * 2, true);
+	// 	LoadTerrain();
+	// 	widget->initializeGL();
+	// 	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
+	// 	// gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
+	// 	get_soil_texture(true);
+	// 	widget->SetAlbedo(albedoTexture);
+	//
+	// 	ResetCamera();
+	// }
+	window->Update();
 
-	gpu_ds.Init(hf, siltf, sandf, clayf,depthf, m_terrain_buffer);
-	// gpu_he.Init(hf, siltf, sandf, clayf, m_terrain_buffer);
-	// gpu_ds.Step(2);
+	// output some results:
+	/*for (auto f : {"mesaverde"}) {
+
+		Raster iraster;
+		// double height_translate[4] = {0.0, 100.0, 0.0, 1.0};
+		read_geotiff((std::string(RESOURCE_DIR "/tifs/") + f + ".tif").c_str(), raster);
+
+		std::cout << "Raster size: " << raster.nx << " x " << raster.ny << std::endl;
+
+		load_raster_to_field(raster, hf, "elevation");
+		std::cout << "post load hf size: " << hf.GetSizeX() << ", " << hf.GetSizeY() << std::endl;
+
+		double newprop_translate[4] = {0.0, 100.0, 0.0, 1.0};
+		read_geotiff((std::string(RESOURCE_DIR "/tifs/") + f + ".tif").c_str(), soil_raster, prop_translate);
+		double iprop_range[2] = {0.0,1.0};
+
+		load_raster_to_field(soil_raster, siltf, "silttotal");
+		load_raster_to_field(soil_raster, sandf, "sandtotal");
+		load_raster_to_field(soil_raster, clayf, "claytotal");
+		load_raster_to_field(raster, depthf, "soildepth");
+
+		for (int i = 0; i < depthf.GetSizeX()*depthf.GetSizeY(); i++) {
+			depthf[i] /=200.0;
+		}
+		widget->initializeGL();
+		widget->SetTerrainBuffer(m_terrain_buffer);
+		widget->UpdateInternal();
+
+		ResetCamera();
+
+		LoadTerrain();
+
+		PredefinedSoilErosion(f, true);
+	}*/
+
 	std::cout << "hf test height (0,127): "<< hf.at(127,127) << std::endl;
+
+
 
 
 	// std::cout << widget->GetCamera() << std::endl;

@@ -128,7 +128,7 @@ GPU_SoilDeposition::~GPU_SoilDeposition()
 
 void GPU_SoilDeposition::Init(const ScalarField2& hf, const ScalarField2& siltf, const ScalarField2& sandf, const ScalarField2& clayf, const ScalarField2& depthf, GLuint t_buffer) {
 	// Prepare data for first step
-	std::cout << "Init Soil Deposition" << std::endl;
+	// std::cout << "Init Soil Deposition" << std::endl;
 	nx = hf.GetSizeX();
 	ny = hf.GetSizeY();
 	totalBufferSize = hf.VertexSize();
