@@ -78,8 +78,6 @@ ScalarField2::ScalarField2(const Box2& box, const char* filename, double minV, d
     std::string fullPath = std::string(RESOURCE_DIR) + "/" + std::string(filename);
     if (global) fullPath = std::string(filename);
 
-    a = box[0];
-    b = box[1];
     int n;
     unsigned short* rawData = stbi_load_16(fullPath.c_str(), &nx, &ny, &n, 1);
     field.resize(nx * ny);
@@ -90,6 +88,10 @@ ScalarField2::ScalarField2(const Box2& box, const char* filename, double minV, d
         field[i] = minV * (1.0f - t) + t * maxV;
     }
     stbi_image_free(rawData);
+    
+    a = box[0];
+	double box_size = box[1][0] - box[0][0];
+    b = a + box_size * Vector2(1., ny / double(nx));
 
     celldiagonal = Vector2((b[0] - a[0]) / (nx - 1), (b[1] - a[1]) / (ny - 1));
     inversecelldiagonal = celldiagonal.Inverse();
