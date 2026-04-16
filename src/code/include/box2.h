@@ -31,6 +31,7 @@ public:
   void Extend(const double&);
   void Extend(const Vector2&);
   Box2 Extended(const double&) const;
+  void Scale(const Vector2& s);
 
   void SetParallelepipedic(int, int&, int&);
   void SetParallelepipedic(const double&, int&, int&);
