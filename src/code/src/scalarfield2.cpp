@@ -647,7 +647,7 @@ void ScalarField2::Save(const char* filename) const
     std::vector<unsigned char> rawData (f.VertexSize() * 2, 0);
     for (int i = 0; i < f.VertexSize(); i++) {
         double d_val = f.at(i) * 65535.;
-        unsigned short us_val = unsigned short(d_val);
+        unsigned short us_val = static_cast<unsigned short>(d_val);
 
         rawData[(i * 2) + 0] = (unsigned char)(us_val >> 8);
         rawData[(i * 2) + 1] = (unsigned char)(us_val & 0xFF);
