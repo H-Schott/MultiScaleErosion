@@ -6,6 +6,7 @@
 #include "write_16_png.h"
 #include "ImFileDialog.h"
 #include <imgui.h>
+#include <algorithm>
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
@@ -27,6 +28,11 @@ static bool m_init_thermal    = false;
 static bool m_init_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
+static GLuint m_lowres_buffer  = 0;
+static GLuint m_result_buffer  = 0;
+static ScalarField2 hf_lowres;
+static bool m_has_lowres      = false;
+static float m_compare_slider = 0.25f;
 
 
 /*!
@@ -59,6 +65,29 @@ static void GetTerrain() {
 	glGetNamedBufferSubData(m_terrain_buffer, 0, sizeof(float) * (hf.GetSizeX() * hf.GetSizeY()), tmpData.data());
 	for (int i = 0; i < hf.GetSizeX() * hf.GetSizeY(); i++)
 		hf[i] = double(tmpData[i]);
+}
+
+/*!
+\brief Upsample hf_lowres to match the current hf dimensions and upload to m_lowres_buffer.
+Call this whenever hf_lowres is set or hf dimensions change.
+*/
+static void RebuildLowresBuffer() {
+	ScalarField2 hf_up = hf_lowres;
+	while (hf_up.GetSizeX() < hf.GetSizeX() || hf_up.GetSizeY() < hf.GetSizeY())
+		hf_up = hf_up.SetResolution(hf_up.GetSizeX() * 2, hf_up.GetSizeY() * 2, true);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_lowres_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * hf_up.GetSizeX() * hf_up.GetSizeY(), hf_up.GetFloatData().data(), GL_STREAM_READ);
+	widget->SetLowresBuffer(m_lowres_buffer);
+	m_has_lowres = true;
+}
+
+/*!
+\brief Snapshot hf as the low-res baseline and upload it to m_lowres_buffer.
+Call this every time a new terrain is loaded.
+*/
+static void CaptureLowres() {
+	hf_lowres = hf;
+	RebuildLowresBuffer();
 }
 
 /*!
@@ -116,6 +145,11 @@ static void PredefinedErosion() {
 
 	gpu_d.Init(hf, gpu_t.GetTerrainGLuint());
 	gpu_d.Step(150);
+
+	// Rebuild low-res buffer at final resolution and open the comparison at half
+	RebuildLowresBuffer();
+	m_compare_slider = 0.25f;
+	widget->SetCompareSlider(m_compare_slider);
 }
 
 /*!
@@ -123,6 +157,40 @@ static void PredefinedErosion() {
 */
 static void GUI()
 {
+	// On-screen compare slider: draggable vertical line
+	if (m_has_lowres) {
+		ImGuiIO& io = ImGui::GetIO();
+		float sx = m_compare_slider * io.DisplaySize.x;
+		float h  = io.DisplaySize.y;
+
+		ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
+		// Split line
+		dl->AddLine(ImVec2(sx, 0.0f), ImVec2(sx, h), IM_COL32(255, 255, 255, 200), 2.0f);
+
+		// Drag handle (circle at vertical midpoint)
+		float cy = h * 0.5f;
+		dl->AddCircleFilled(ImVec2(sx, cy), 14.0f, IM_COL32(255, 255, 255, 230));
+		dl->AddCircle(ImVec2(sx, cy), 14.0f, IM_COL32(80, 80, 80, 200), 0, 2.0f);
+		// Arrow indicators
+		dl->AddTriangleFilled(ImVec2(sx - 5.0f, cy - 5.0f), ImVec2(sx - 5.0f, cy + 5.0f), ImVec2(sx - 11.0f, cy), IM_COL32(80, 80, 80, 220));
+		dl->AddTriangleFilled(ImVec2(sx + 5.0f, cy - 5.0f), ImVec2(sx + 5.0f, cy + 5.0f), ImVec2(sx + 11.0f, cy), IM_COL32(80, 80, 80, 220));
+
+		// Drag interaction (only when not over any ImGui window)
+		static bool dragging_slider = false;
+		if (!dragging_slider && !io.WantCaptureMouse) {
+			float dist = std::abs(io.MousePos.x - sx);
+			if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && dist < 20.0f)
+				dragging_slider = true;
+		}
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+			dragging_slider = false;
+		if (dragging_slider) {
+			m_compare_slider = std::clamp(io.MousePos.x / io.DisplaySize.x, 0.0f, 1.0f);
+			widget->SetCompareSlider(m_compare_slider);
+		}
+	}
+
 	// Menu bar
 	static bool newScene = false;
 	if (ImGui::BeginMainMenuBar())
@@ -149,6 +217,8 @@ static void GUI()
 			if (ImGui::Button("Noise")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
 				LoadTerrain();
+				CaptureLowres();
+				m_result_buffer = m_terrain_buffer;
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -156,6 +226,8 @@ static void GUI()
 			if (ImGui::Button("Mountains")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/mountains.png", 0., 3000.);
 				LoadTerrain();
+				CaptureLowres();
+				m_result_buffer = m_terrain_buffer;
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -163,6 +235,8 @@ static void GUI()
 			if (ImGui::Button("New Zealand")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/new_zealand.png", 0., 3200.);
 				LoadTerrain();
+				CaptureLowres();
+				m_result_buffer = m_terrain_buffer;
 				widget->initializeGL();
 				ResetCamera();
 			}
@@ -174,11 +248,13 @@ static void GUI()
 			if (ImGui::Button("Result #1")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/noise.png", 0., 3000.);
 				LoadTerrain();
+				CaptureLowres();
 
 				PredefinedErosion();
 
 				GetTerrain();
-				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				m_result_buffer = gpu_d.GetTerrainGLuint();
+				widget->SetTerrainBuffer(m_result_buffer);
 				widget->initializeGL();
 
 				ResetCamera();
@@ -188,11 +264,13 @@ static void GUI()
 			if (ImGui::Button("Result #2")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/mountains.png", 0., 3000.);
 				LoadTerrain();
+				CaptureLowres();
 
 				PredefinedErosion();
 
 				GetTerrain();
-				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				m_result_buffer = gpu_d.GetTerrainGLuint();
+				widget->SetTerrainBuffer(m_result_buffer);
 				widget->initializeGL();
 
 				ResetCamera();
@@ -202,11 +280,13 @@ static void GUI()
 			if (ImGui::Button("Result #3")) {
 				hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), "heightfields/new_zealand.png", 0., 3200.);
 				LoadTerrain();
+				CaptureLowres();
 
 				PredefinedErosion();
 
 				GetTerrain();
-				widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+				m_result_buffer = gpu_d.GetTerrainGLuint();
+				widget->SetTerrainBuffer(m_result_buffer);
 				widget->initializeGL();
 
 				ResetCamera();
@@ -250,16 +330,23 @@ static void GUI()
 				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
 				LoadTerrain();
 
-				widget->initializeGL();
+				// Keep low-res buffer in sync with the new terrain dimensions
+				if (m_has_lowres)
+					RebuildLowresBuffer();
 
-				ResetCamera();
+				m_result_buffer = m_terrain_buffer;
+				widget->SetCompareSlider(m_compare_slider);
+
+				Camera savedCam = widget->GetCamera();
+				widget->initializeGL();
+				widget->SetCamera(savedCam);
 
 				m_init_erosion = false;
 				m_init_thermal = false;
 				m_init_deposition = false;
 			}
 		}
-		
+
 
 		// Simulation statistics
 		{
@@ -277,6 +364,8 @@ static void GUI()
 			std::string res = ifd::FileDialog::Instance().GetResult().u8string();
 			hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), res.c_str(), 0., 2500., true);
 			LoadTerrain();
+			CaptureLowres();
+			m_result_buffer = m_terrain_buffer;
 			widget->initializeGL();
 			ResetCamera();
 		}
@@ -304,9 +393,13 @@ int main()
 
 	// buffer init
 	glGenBuffers(1, &m_terrain_buffer);
+	glGenBuffers(1, &m_lowres_buffer);
 
 	hf = ScalarField2(Box2(Vector2::Null, 15 * 1000), "heightfields/noise.png", 0.0, 4000.0);
 	LoadTerrain();
+	CaptureLowres();
+	m_result_buffer = m_terrain_buffer;
+	widget->SetCompareSlider(m_compare_slider);
 	window->SetWidget(widget);
 
 	ResetCamera();
@@ -322,7 +415,8 @@ int main()
 
 			gpu_e.Step(100);
 
-			widget->SetTerrainBuffer(gpu_e.GetTerrainGLuint());
+			m_result_buffer = gpu_e.GetTerrainGLuint();
+			widget->SetTerrainBuffer(m_result_buffer);
 			widget->UpdateInternal();
 
 		} else if (m_run_thermal) {
@@ -333,7 +427,8 @@ int main()
 
 			gpu_t.Step(200);
 
-			widget->SetTerrainBuffer(gpu_t.GetTerrainGLuint());
+			m_result_buffer = gpu_t.GetTerrainGLuint();
+			widget->SetTerrainBuffer(m_result_buffer);
 			widget->UpdateInternal();
 
 		} else if (m_run_deposition) {
@@ -344,7 +439,8 @@ int main()
 
 			gpu_d.Step(50);
 
-			widget->SetTerrainBuffer(gpu_d.GetTerrainGLuint());
+			m_result_buffer = gpu_d.GetTerrainGLuint();
+			widget->SetTerrainBuffer(m_result_buffer);
 			widget->UpdateInternal();
 		}
 

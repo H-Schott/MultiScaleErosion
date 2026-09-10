@@ -21,12 +21,14 @@ TerrainRaytracingWidget::TerrainRaytracingWidget()
 	parent = nullptr;
 	hf = nullptr;
 	terrain_buffer = 0;
+	lowres_buffer = 0;
 	hfTexture = albedoTexture = 0;
 	raytraceVAO = shaderProgram = 0;
 	shadingMode = 0;
 	K = 1.0f;
 	zMin = zMax = 0.0f;
 	cameraAngleOfViewV = 0.0;
+	compareSlider = 0.0f;
 	x0 = y0 = 0.0;
 }
 
@@ -88,6 +90,8 @@ void TerrainRaytracingWidget::paintGL()
 	glUniform1i(glGetUniformLocation(shaderProgram, "shadingMode"), shadingMode);
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, terrain_buffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lowres_buffer);
+	glUniform1f(glGetUniformLocation(shaderProgram, "compareSlider"), compareSlider);
 
 	// Draw heightfield
 	glBindVertexArray(raytraceVAO);
@@ -128,13 +132,14 @@ void TerrainRaytracingWidget::Update()
 	}
 
 	GLFWwindow* windowPtr = parent->getPointer();
+	const bool altHeld = parent->GetKey(GLFW_KEY_LEFT_ALT) || parent->GetKey(GLFW_KEY_RIGHT_ALT);
 	const double MoveScale = Norm(camera.View()) * 0.015 * 0.05;
-	if (parent->GetMousePressed(GLFW_MOUSE_BUTTON_LEFT) && !parent->GetKey(GLFW_KEY_LEFT_CONTROL))
+	if (altHeld && parent->GetMousePressed(GLFW_MOUSE_BUTTON_LEFT) && !parent->GetKey(GLFW_KEY_LEFT_CONTROL))
 	{
 		camera.LeftRightRound((x0 - mousePos[0]) * 0.01);
 		camera.UpDownRound((y0 - mousePos[1]) * 0.005);
 	}
-	if (parent->GetMousePressed(GLFW_MOUSE_BUTTON_MIDDLE) && !parent->GetKey(GLFW_KEY_LEFT_CONTROL))
+	if (altHeld && parent->GetMousePressed(GLFW_MOUSE_BUTTON_MIDDLE) && !parent->GetKey(GLFW_KEY_LEFT_CONTROL))
 	{
 		camera.LeftRightHorizontal((mousePos[0] - x0) * MoveScale);
 		camera.UpDownVertical((mousePos[1] - y0) * MoveScale);

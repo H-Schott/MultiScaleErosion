@@ -27,10 +27,12 @@ protected:
 	GLuint shaderProgram;			//!< GL program for shader.
 	GLuint raytraceVAO;				//!< Raytracer VAO.
 	GLuint terrain_buffer;
+	GLuint lowres_buffer;			//!< Low-res input terrain buffer for comparison.
 	GLuint hfTexture;				//!< Heightfield elevation texture.
 	GLuint albedoTexture;			//!< Albedo texture for the heightfield.
 	std::vector<float> tmpData;		//!< Temporary float vector.
 	float cameraAngleOfViewV;		//!< Precomputed vertical camera angle of view.
+	float compareSlider;			//!< Split position [0,1]: left=low-res, right=eroded.
 
 	// Parent window
 	Window* parent;					//!< Parent %Window class.
@@ -51,6 +53,8 @@ public:
 	virtual void Update();
 	virtual void SetHeightField(ScalarField2* hfPtr);
 	virtual void SetTerrainBuffer(GLuint buf) { terrain_buffer = buf; };
+	virtual void SetLowresBuffer(GLuint buf) { lowres_buffer = buf; };
+	virtual void SetCompareSlider(float t) { compareSlider = t; };
 	virtual void UpdateInternal();
 	virtual void initializeGL();
 	virtual void paintGL();
