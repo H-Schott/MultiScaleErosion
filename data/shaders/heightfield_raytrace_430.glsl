@@ -14,7 +14,12 @@ void main(void)
 
 #ifdef FRAGMENT_SHADER
 
-layout(binding = 0, std430) buffer InTerrain { float heightfield[]; };
+layout(binding = 0, std430) buffer InTerrain     { float heightfield[];        };
+layout(binding = 1, std430) buffer InLowresTerrain { float lowres_heightfield[]; };
+
+uniform float compareSlider;  // [0,1]: left of line = low-res, right = eroded
+
+bool useHighres;  // set per-fragment in main() based on screen x vs compareSlider
 
 // Camera data
 uniform vec3 CamPos;
@@ -46,7 +51,10 @@ float Bilinear(float a00, float a10, float a11, float a01, float u, float v) {
 }
 
 float at(int i, int j) {
-	return heightfield[j * texSize.x + i];
+	if (useHighres)
+		return heightfield[j * texSize.x + i];
+	else
+		return lowres_heightfield[j * texSize.x + i];
 }
 
 void GetUV(vec2 p, out vec2 uv, out int i, out int j) {
@@ -247,8 +255,7 @@ vec4 ShadeTerrain(vec3 p) {
 	// Terrain sides and bottom
 	if (abs(Box(p.xy, a, b)) < epsilon || abs(p.z - zRange.x + 0.1f * (zRange.y - zRange.x)) < epsilon)
 		return vec4(0.3f, 0.29f, 0.31f, 1.0f);
-	
-	// Terrain interior
+
 	if (shadingMode == 0)
 	{
 		vec3 n = Normal(p, (b - a) / texSize);
@@ -268,6 +275,9 @@ vec4 ShadeTerrain(vec3 p) {
 }
 
 void main() {
+	// Select which heightfield buffer this fragment samples from
+	useHighres = (gl_FragCoord.x / iResolution.x) >= compareSlider;
+
 	// Compute ray
 	vec3 ro = CamPos;
 	vec3 rd = BuildRd();
@@ -278,7 +288,7 @@ void main() {
 	float t;
 	int s;
 	bool hit = SphereTrace(ro, rd, p, t, s);
-	
+
 	// Shade either sky or terrain
 	if (hit) {
 		c = ShadeTerrain(p);
@@ -287,6 +297,11 @@ void main() {
 		c = ShadeSkyBlue(rd);
 		c = mix(c, vec4(0.85, 0.95, 1.0, 1.0), gl_FragCoord.x * 0.0001 + 0.95 * gl_FragCoord.y / iResolution.y);
 	}
+
+	// Draw split line
+	float lineX = compareSlider * iResolution.x;
+	if (abs(gl_FragCoord.x - lineX) < 1.5)
+		c = mix(c, vec4(1.0, 1.0, 1.0, 1.0), 0.85);
 
 	Fragment = c;
 }

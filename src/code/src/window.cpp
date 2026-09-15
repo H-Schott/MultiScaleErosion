@@ -4,6 +4,9 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <string>
+
+extern std::string g_dropped_file;
 
 /*!
 \brief Class for handling a window with GLFW3 library.
@@ -130,6 +133,11 @@ void Window::SetWidget(TerrainRaytracingWidget* w)
 	{
 		TerrainRaytracingWidget* ptr = (TerrainRaytracingWidget*) glfwGetWindowUserPointer(win);
 		ptr->ScrollCallback(win, x, y);
+	});
+	glfwSetDropCallback(windowPtr, [](GLFWwindow*, int count, const char** paths)
+	{
+		if (count > 0)
+			g_dropped_file = paths[0];
 	});
 }
 

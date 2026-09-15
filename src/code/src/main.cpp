@@ -28,6 +28,7 @@ static bool m_init_thermal    = false;
 static bool m_init_deposition = false;
 
 static GLuint m_terrain_buffer = 0;
+std::string g_dropped_file;
 static GLuint m_lowres_buffer  = 0;
 static GLuint m_result_buffer  = 0;
 static ScalarField2 hf_lowres;
@@ -370,6 +371,17 @@ static void GUI()
 			ResetCamera();
 		}
 		ifd::FileDialog::Instance().Close();
+	}
+
+	// Drag-and-drop file load
+	if (!g_dropped_file.empty()) {
+		hf = ScalarField2(Box2(Vector2::Null, 10 * 1000), g_dropped_file.c_str(), 0., 2500., true);
+		LoadTerrain();
+		CaptureLowres();
+		m_result_buffer = m_terrain_buffer;
+		widget->initializeGL();
+		ResetCamera();
+		g_dropped_file.clear();
 	}
 
 	// File Dialog SAVE
