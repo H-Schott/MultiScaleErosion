@@ -347,6 +347,37 @@ static void GUI()
 				m_init_deposition = false;
 			}
 		}
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+		{
+			// Amplitude and wavelength are relative to the terrain width
+			static float warp_amplitude = 1.5f;
+			static float warp_wavelength = 20.0f;
+			static int warp_seed = 239;
+
+			ImGui::Text("Warp");
+			ImGui::SliderFloat("Amplitude (%)", &warp_amplitude, 0.0f, 10.0f);
+			ImGui::SliderFloat("Wavelength (%)", &warp_wavelength, 1.0f, 100.0f);
+			if (ImGui::Button("Warp")) {
+				GetTerrain();
+				const double width = hf.GetBox().Width();
+				hf.Warp(0.01 * warp_amplitude * width, 0.01 * warp_wavelength * width, 4, warp_seed++);
+				LoadTerrain();
+
+				m_result_buffer = m_terrain_buffer;
+				widget->SetCompareSlider(m_compare_slider);
+
+				Camera savedCam = widget->GetCamera();
+				widget->initializeGL();
+				widget->SetCamera(savedCam);
+
+				m_init_erosion = false;
+				m_init_thermal = false;
+				m_init_deposition = false;
+			}
+		}
+		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 
 
 		// Simulation statistics

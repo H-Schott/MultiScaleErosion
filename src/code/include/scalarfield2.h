@@ -52,6 +52,7 @@ public:
   void SetRange(const double&, const double&);
   void Sqrt();
   ScalarField2 Sqrted() const;
+  void Warp(const double&, const double&, int = 4, int = 239);
 
   // IO
   void Save(const char* filename) const;

@@ -1,5 +1,7 @@
 #include <immintrin.h>
 #include "scalarfield2.h"
+#include "noise.h"
+#include "random.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -453,6 +455,58 @@ ScalarField2 ScalarField2::Sqrted() const {
     ScalarField2 sf = *this;
     sf.Sqrt();
     return sf;
+}
+
+/*!
+\brief Warp the domain of the scalar field with a random fractal Perlin noise.
+
+Each vertex p takes the value f(p + d(p)), where d is a displacement vector field whose
+components are two independent fBm noises. Samples falling outside the domain are clamped to the border.
+\param amplitude Maximum displacement, in world units.
+\param wavelength Wavelength of the largest noise octave, in world units.
+\param octaves Number of noise octaves.
+\param seed Random seed.
+*/
+void ScalarField2::Warp(const double& amplitude, const double& wavelength, int octaves, int seed)
+{
+    // Random offsets, one per displacement component, so the two noises are decorrelated
+    Random random(seed);
+    const Vector ox(random.Uniform(256.0), random.Uniform(256.0), random.Uniform(256.0));
+    const Vector oy(random.Uniform(256.0), random.Uniform(256.0), random.Uniform(256.0));
+
+    // Normalization so that the displacement stays within [-amplitude, amplitude]
+    double norm = 0.0;
+    for (int k = 0, w = 1; k < octaves; k++, w *= 2) norm += 1.0 / w;
+    const double scale = amplitude / norm;
+
+    // Keep samples strictly inside the domain so that bilinear interpolation stays valid
+    const Vector2 lo = a;
+    const Vector2 hi = b - 1e-6 * celldiagonal;
+
+    std::vector<double> warped(nx * ny);
+
+    for (int j = 0; j < ny; j++)
+    {
+        for (int i = 0; i < nx; i++)
+        {
+            const Vector2 p = ArrayVertex(i, j);
+            const Vector q = p.ToVector(0.0) / wavelength;
+
+            Vector2 d(0.0, 0.0);
+            double amp = 1.0, freq = 1.0;
+            for (int k = 0; k < octaves; k++)
+            {
+                d[0] += amp * PerlinNoise::GetValue(q * freq + ox);
+                d[1] += amp * PerlinNoise::GetValue(q * freq + oy);
+                amp *= 0.5;
+                freq *= 2.0;
+            }
+
+            warped[VertexIndex(i, j)] = Value(::Clamp(p + scale * d, lo, hi));
+        }
+    }
+
+    field = warped;
 }
 
 
