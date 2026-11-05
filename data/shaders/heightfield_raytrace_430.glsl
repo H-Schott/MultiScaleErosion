@@ -254,7 +254,7 @@ vec4 ShadeSkyBlue(in vec3 d) {
 vec4 ShadeTerrain(vec3 p) {
 	// Terrain sides and bottom
 	if (abs(Box(p.xy, a, b)) < epsilon || abs(p.z - zRange.x + 0.1f * (zRange.y - zRange.x)) < epsilon)
-		return vec4(0.3f, 0.29f, 0.31f, 1.0f);
+		return vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	if (shadingMode == 0)
 	{
@@ -294,14 +294,13 @@ void main() {
 		c = ShadeTerrain(p);
 	}
 	else {
-		c = ShadeSkyBlue(rd);
-		c = mix(c, vec4(0.85, 0.95, 1.0, 1.0), gl_FragCoord.x * 0.0001 + 0.95 * gl_FragCoord.y / iResolution.y);
+		c = vec4(1.0, 1.0, 1.0, 1.0);
 	}
 
 	// Draw split line
 	float lineX = compareSlider * iResolution.x;
 	if (abs(gl_FragCoord.x - lineX) < 1.5)
-		c = mix(c, vec4(1.0, 1.0, 1.0, 1.0), 0.85);
+		c = mix(c, vec4(0.1, 0.1, 0.1, 1.0), 0.85);
 
 	Fragment = c;
 }

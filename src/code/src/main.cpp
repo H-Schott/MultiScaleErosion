@@ -7,6 +7,7 @@
 #include "ImFileDialog.h"
 #include <imgui.h>
 #include <algorithm>
+#include <cmath>
 
 static Window* window;
 static TerrainRaytracingWidget* widget;
@@ -324,11 +325,43 @@ static void GUI()
 		ImGui::Separator();
 		ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 		{
-			if (ImGui::Button("x2 upsampling")) {
+			static int resize_res[2] = { 0, 0 };
+			static bool resize_keep_ratio = true;
+			static int last_size[2] = { 0, 0 };
+			if (last_size[0] != hf.GetSizeX() || last_size[1] != hf.GetSizeY()) {
+				// Terrain changed (load, upsampling...): show its current resolution
+				last_size[0] = resize_res[0] = hf.GetSizeX();
+				last_size[1] = resize_res[1] = hf.GetSizeY();
+			}
 
-				// x2 upsampling
+			int new_x = 0, new_y = 0;
+			if (ImGui::Button("x2 upsampling")) {
+				new_x = hf.GetSizeX() * 2;
+				new_y = hf.GetSizeY() * 2;
+			}
+
+			ImGui::Text("Resolution");
+			int prev_res[2] = { resize_res[0], resize_res[1] };
+			if (ImGui::InputInt2("##resize_res", resize_res) && resize_keep_ratio) {
+				// Keep the current terrain aspect ratio, following the edited component
+				const double ratio = hf.GetSizeY() / double(hf.GetSizeX());
+				if (resize_res[0] != prev_res[0])
+					resize_res[1] = int(std::round(resize_res[0] * ratio));
+				else
+					resize_res[0] = int(std::round(resize_res[1] / ratio));
+			}
+			ImGui::Checkbox("Keep aspect ratio", &resize_keep_ratio);
+			ImGui::SameLine();
+			if (ImGui::Button("Resize")) {
+				new_x = resize_res[0];
+				new_y = resize_res[1];
+			}
+
+			if (new_x >= 2 && new_y >= 2) {
+
+				// Resample the terrain to the requested resolution
 				GetTerrain();
-				hf = hf.SetResolution(hf.GetSizeX() * 2, hf.GetSizeY() * 2, true);
+				hf = hf.SetResolution(new_x, new_y, true);
 				LoadTerrain();
 
 				// Keep low-res buffer in sync with the new terrain dimensions
